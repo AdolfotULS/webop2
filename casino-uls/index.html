@@ -435,6 +435,11 @@ body {
 .color-fin     { color: #dc2626; }
 .empty-list    { text-align: center; padding: 24px; color: #bbb; font-size: 14px; }
 
+/* Mode toggle (Nueva / Retomar) */
+.mode-toggle { display: flex; background: #ebebeb; border-radius: 10px; padding: 3px; gap: 2px; }
+.mode-tab { flex: 1; padding: 8px; border: none; border-radius: 8px; font-size: 13px; font-weight: 700; cursor: pointer; background: none; color: #aaa; transition: background .12s, color .12s; }
+.mode-tab.active { background: #fff; color: #111; box-shadow: 0 1px 3px rgba(0,0,0,.1); }
+
 /* Spinner */
 .spinner { display: inline-block; width: 13px; height: 13px; border: 2px solid #d4d3cc; border-top-color: #666; border-radius: 50%; animation: spin .6s linear infinite; vertical-align: middle; margin-right: 5px; }
 @keyframes spin { to { transform: rotate(360deg); } }
@@ -477,15 +482,32 @@ body {
       </div>
     </div>
 
-    <!-- Coordinador: crear sesión -->
+    <!-- Coordinador: crear/retomar sesión -->
     <div id="coord-form" style="display:none;flex-direction:column;gap:12px;">
-      <div class="field">
-        <label>Nombre de la jornada</label>
-        <input id="inp-label" type="text" placeholder="Ej: Día 1 · Mediodía" maxlength="50" autocomplete="off">
+      <div class="mode-toggle">
+        <button class="mode-tab active" id="tab-nueva"   onclick="switchCoordMode('nueva')">Nueva sesión</button>
+        <button class="mode-tab"        id="tab-retomar" onclick="switchCoordMode('retomar')">Retomar</button>
       </div>
-      <div class="field">
-        <label>N° cajas activas</label>
-        <input id="inp-cajas" type="number" min="1" max="20" value="3">
+
+      <div id="coord-nueva" style="display:flex;flex-direction:column;gap:12px;">
+        <div class="field">
+          <label>Nombre de la jornada</label>
+          <input id="inp-label" type="text" placeholder="Ej: Día 1 · Mediodía" maxlength="50" autocomplete="off">
+        </div>
+        <div class="field">
+          <label>N° cajas activas</label>
+          <input id="inp-cajas" type="number" min="1" max="20" value="3">
+        </div>
+      </div>
+
+      <div id="coord-retomar" style="display:none;flex-direction:column;gap:8px;">
+        <div class="sec-head">
+          Sesiones activas
+          <button class="btn-refresh" onclick="recargarSesionesCoord()">↺</button>
+        </div>
+        <div class="session-list" id="coord-session-list">
+          <div class="empty-msg">Cargando…</div>
+        </div>
       </div>
     </div>
 
@@ -585,7 +607,9 @@ let coordTimerIv  = null;
 let unsubSession  = null;
 let unsubEventos  = null;
 let online        = navigator.onLine;
-let selectedSession = null;
+let selectedSession      = null;
+let selectedCoordSession = null;
+let coordMode            = 'nueva';   // nueva | retomar
 
 // Último registro por tipo (para display)
 const lastReg = { llegada: null, inicio: null, fin: null };
@@ -643,20 +667,72 @@ window.selectSession = function(el, s) {
 };
 
 function validarSetup() {
-  const ok = rol === 'coordinador'
-    ? !!(document.getElementById('inp-label')?.value?.trim())
-    : !!(rol && selectedSession);
+  let ok;
+  if (rol === 'coordinador') {
+    ok = coordMode === 'nueva'
+      ? !!(document.getElementById('inp-label')?.value?.trim())
+      : !!selectedCoordSession;
+  } else {
+    ok = !!(rol && selectedSession);
+  }
   document.getElementById('btn-entrar').disabled = !ok;
 }
 
 document.getElementById('inp-label').addEventListener('input', validarSetup);
+
+window.switchCoordMode = function(mode) {
+  coordMode = mode;
+  document.getElementById('tab-nueva').classList.toggle('active', mode === 'nueva');
+  document.getElementById('tab-retomar').classList.toggle('active', mode === 'retomar');
+  document.getElementById('coord-nueva').style.display   = mode === 'nueva'   ? 'flex' : 'none';
+  document.getElementById('coord-retomar').style.display = mode === 'retomar' ? 'flex' : 'none';
+  if (mode === 'retomar') recargarSesionesCoord();
+  validarSetup();
+};
+
+window.recargarSesionesCoord = async function() {
+  const list = document.getElementById('coord-session-list');
+  list.innerHTML = '<div class="empty-msg">Cargando…</div>';
+  selectedCoordSession = null;
+  validarSetup();
+  try {
+    const all = await fetchSessions();
+    const visible = all.filter(s => s.status !== 'ended');
+    if (!visible.length) {
+      list.innerHTML = '<div class="empty-msg">Sin sesiones activas para retomar.</div>';
+      return;
+    }
+    list.innerHTML = visible.map(s => `
+      <div class="session-item" data-id="${s.id}" onclick='selectCoordSession(this, ${JSON.stringify(s)})'>
+        <div class="si-dot ${s.status}"></div>
+        <div class="si-info">
+          <div class="si-label">${s.label}</div>
+          <div class="si-meta">${s.n_cajas} caja${s.n_cajas>1?'s':''}</div>
+        </div>
+        <div class="si-status ${s.status}">${s.status==='waiting'?'Esperando':'Activa'}</div>
+      </div>`).join('');
+  } catch {
+    list.innerHTML = '<div class="empty-msg">Error de conexión.</div>';
+  }
+};
+
+window.selectCoordSession = function(el, s) {
+  document.querySelectorAll('#coord-session-list .session-item').forEach(i => i.classList.remove('selected'));
+  el.classList.add('selected');
+  selectedCoordSession = s;
+  validarSetup();
+};
 
 // ══════════════════════════════════════════════════════════════
 //  Entrar
 // ══════════════════════════════════════════════════════════════
 window.entrar = async function() {
   document.getElementById('btn-entrar').disabled = true;
-  rol === 'coordinador' ? await entrarCoordinador() : await entrarObservador();
+  if (rol === 'coordinador') {
+    coordMode === 'retomar' ? await entrarCoordinadorRetomar() : await entrarCoordinador();
+  } else {
+    await entrarObservador();
+  }
 };
 
 async function entrarCoordinador() {
@@ -679,6 +755,43 @@ async function entrarCoordinador() {
   showScreen('coordinator');
   renderCoordBadge();
   renderCoordBody();
+
+  unsubSession = subscribeTable('sessions', `id=eq.${sessionId}`, (ev, row) => {
+    if (row.status !== sessionStatus) {
+      sessionStatus = row.status;
+      renderCoordBadge();
+      renderCoordBody();
+    }
+  });
+  unsubEventos = subscribeTable('eventos', `session_id=eq.${sessionId}`, (ev, row) => {
+    if (ev === 'INSERT' && !sessionEvents.find(e => e.t_server === row.t_server && e.tipo === row.tipo)) {
+      sessionEvents.push(row);
+      updateCoordStats();
+    }
+  });
+
+  window.addEventListener('online',  onOnline);
+  window.addEventListener('offline', onOffline);
+  updateCoordConnBadge();
+}
+
+async function entrarCoordinadorRetomar() {
+  const s      = selectedCoordSession;
+  sessionId    = s.id;
+  sessionLabel = s.label;
+  nCajas       = s.n_cajas;
+  sessionStatus = s.status;
+
+  document.getElementById('coord-lbl-session').textContent = sessionLabel;
+  showScreen('coordinator');
+  renderCoordBadge();
+  renderCoordBody();
+
+  // Load existing events for stats
+  try {
+    sessionEvents = (await fetchSession(sessionId)) || [];
+    updateCoordStats();
+  } catch { sessionEvents = []; }
 
   unsubSession = subscribeTable('sessions', `id=eq.${sessionId}`, (ev, row) => {
     if (row.status !== sessionStatus) {
@@ -1024,10 +1137,12 @@ window.volverSetup = function() {
   clearInterval(coordTimerIv);
   window.removeEventListener('online', onOnline);
   window.removeEventListener('offline', onOffline);
-  sessionEvents   = [];
-  rol             = null;
-  selectedSession = null;
-  sessionStatus   = null;
+  sessionEvents        = [];
+  rol                  = null;
+  selectedSession      = null;
+  sessionStatus        = null;
+  coordMode            = 'nueva';
+  selectedCoordSession = null;
   Object.keys(lastReg).forEach(k => lastReg[k] = null);
   document.querySelectorAll('.role-btn').forEach(b =>
     b.classList.remove('sel-coord','sel-fila','sel-atencion')
@@ -1036,6 +1151,15 @@ window.volverSetup = function() {
   document.getElementById('obs-form').style.display   = 'none';
   document.getElementById('inp-label').value = '';
   document.getElementById('btn-entrar').disabled = true;
+  // reset coord mode toggle to "Nueva"
+  const tN = document.getElementById('tab-nueva');
+  const tR = document.getElementById('tab-retomar');
+  const dN = document.getElementById('coord-nueva');
+  const dR = document.getElementById('coord-retomar');
+  if (tN) { tN.classList.add('active'); }
+  if (tR) { tR.classList.remove('active'); }
+  if (dN) { dN.style.display = 'flex'; }
+  if (dR) { dR.style.display = 'none'; }
   showScreen('setup');
 };
 

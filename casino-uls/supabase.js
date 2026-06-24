@@ -105,22 +105,24 @@ export async function syncNow() {
   return { flushed, remaining: qCount() };
 }
 
-// ── Realtime subscribe (generic) ─────────────────────────────────
+// ── Realtime subscribe — Supabase Realtime v2 protocol ───────────
 // filter: e.g. "session_id=eq.abc" or null for whole table
 // onEvent(eventType, record) — eventType: 'INSERT' | 'UPDATE' | 'DELETE'
 export function subscribeTable(table, filter, onEvent) {
   const wsUrl = SB_URL().replace('https://', 'wss://').replace('http://', 'ws://');
-  const topic = filter
-    ? `realtime:public:${table}:${filter}`
-    : `realtime:public:${table}`;
+  // v2: arbitrary topic name (filter goes in postgres_changes config, not topic)
+  const topic = `realtime:${table}-${Date.now()}`;
   const ws = new WebSocket(`${wsUrl}/realtime/v1/websocket?apikey=${SB_KEY()}&vsn=1.0.0`);
   let heartbeat;
+
+  const pgChange = { event: '*', schema: 'public', table };
+  if (filter) pgChange.filter = filter;
 
   ws.onopen = () => {
     ws.send(JSON.stringify({
       topic,
       event: 'phx_join',
-      payload: { config: { broadcast: { self: true }, presence: { key: '' } } },
+      payload: { config: { postgres_changes: [pgChange] } },
       ref: '1',
     }));
     heartbeat = setInterval(() => {
@@ -131,8 +133,10 @@ export function subscribeTable(table, filter, onEvent) {
   ws.onmessage = (e) => {
     try {
       const msg = JSON.parse(e.data);
-      if (['INSERT', 'UPDATE', 'DELETE'].includes(msg.event) && msg.payload?.record) {
-        onEvent(msg.event, msg.payload.record);
+      // Realtime v2: event='postgres_changes', type+record inside payload.data
+      if (msg.event === 'postgres_changes' && msg.payload?.data) {
+        const { type, record } = msg.payload.data;
+        if (type && record) onEvent(type, record);
       }
     } catch {}
   };
