@@ -589,7 +589,7 @@ body {
 <script type="module">
 import {
   createSession, updateSession, fetchSessions,
-  insertEvento, fetchSession, subscribeTable,
+  insertEvento, fetchSession, fetchOneSession, subscribeTable,
   syncNow, qCount, serverNow
 } from './supabase.js';
 
@@ -610,6 +610,7 @@ let online        = navigator.onLine;
 let selectedSession      = null;
 let selectedCoordSession = null;
 let coordMode            = 'nueva';   // nueva | retomar
+let visibilityHandler    = null;
 
 // Último registro por tipo (para display)
 const lastReg = { llegada: null, inicio: null, fin: null };
@@ -773,6 +774,7 @@ async function entrarCoordinador() {
   window.addEventListener('online',  onOnline);
   window.addEventListener('offline', onOffline);
   updateCoordConnBadge();
+  registerVisibilityHandler();
 }
 
 async function entrarCoordinadorRetomar() {
@@ -810,6 +812,7 @@ async function entrarCoordinadorRetomar() {
   window.addEventListener('online',  onOnline);
   window.addEventListener('offline', onOffline);
   updateCoordConnBadge();
+  registerVisibilityHandler();
 }
 
 async function entrarObservador() {
@@ -846,6 +849,7 @@ async function entrarObservador() {
   window.addEventListener('online',  onOnline);
   window.addEventListener('offline', onOffline);
   updateConnBadge();
+  registerVisibilityHandler();
 }
 
 // ══════════════════════════════════════════════════════════════
@@ -926,6 +930,30 @@ function applySessionState(status) {
     badge.textContent = '■ Finalizada';
     stopTimer();
   }
+}
+
+// ══════════════════════════════════════════════════════════════
+//  Visibility handler — re-validates session on tab/app return
+// ══════════════════════════════════════════════════════════════
+function registerVisibilityHandler() {
+  if (visibilityHandler) document.removeEventListener('visibilitychange', visibilityHandler);
+  visibilityHandler = async function() {
+    if (document.hidden || !sessionId) return;
+    try {
+      const s = await fetchOneSession(sessionId);
+      if (!s) return;
+      if (s.status !== sessionStatus) {
+        sessionStatus = s.status;
+        if (rol === 'coordinador') {
+          renderCoordBadge();
+          renderCoordBody();
+        } else {
+          applySessionState(sessionStatus);
+        }
+      }
+    } catch {}
+  };
+  document.addEventListener('visibilitychange', visibilityHandler);
 }
 
 // ══════════════════════════════════════════════════════════════
@@ -1137,6 +1165,10 @@ window.volverSetup = function() {
   clearInterval(coordTimerIv);
   window.removeEventListener('online', onOnline);
   window.removeEventListener('offline', onOffline);
+  if (visibilityHandler) {
+    document.removeEventListener('visibilitychange', visibilityHandler);
+    visibilityHandler = null;
+  }
   sessionEvents        = [];
   rol                  = null;
   selectedSession      = null;

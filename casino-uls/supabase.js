@@ -100,6 +100,11 @@ export async function fetchSession(session_id) {
   return req('GET', `${EVENTOS}?session_id=eq.${encodeURIComponent(session_id)}&order=t_server.asc&select=*`);
 }
 
+export async function fetchOneSession(id) {
+  const rows = await req('GET', `${SESSIONS}?id=eq.${encodeURIComponent(id)}&select=*&limit=1`);
+  return rows[0] ?? null;
+}
+
 export async function syncNow() {
   const flushed = await qFlush();
   return { flushed, remaining: qCount() };

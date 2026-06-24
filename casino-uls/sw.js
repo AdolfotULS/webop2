@@ -1,5 +1,5 @@
 // sw.js — cachea la app para funcionar offline
-const CACHE = 'casino-v3';
+const CACHE = 'casino-v4';
 const ASSETS = ['/', '/index.html', '/supabase.js'];
 
 self.addEventListener('install', e => {
