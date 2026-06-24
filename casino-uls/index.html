@@ -1,0 +1,798 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>Casino ULS</title>
+
+<!-- ══ CREDENCIALES SUPABASE ══════════════════════════════════════════
+     Reemplaza estos valores con los tuyos desde supabase.com → Settings → API
+     No subas el anon key a un repo público si la tabla tiene datos sensibles.
+     Para producción usa variables de entorno en Vercel (ver README).
+================================================================== -->
+<script>
+  window.SB_URL = 'https://TU_PROYECTO.supabase.co';
+  window.SB_KEY = 'TU_ANON_KEY';
+</script>
+
+<style>
+/* ── Reset y base ─────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+html, body { height: 100%; }
+body {
+  background: #0a0a0a;
+  color: #f0f0f0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  display: flex;
+  flex-direction: column;
+  height: 100dvh;
+  overflow: hidden;
+}
+
+/* ── Pantalla de setup ────────────────────────────────────── */
+#screen-setup {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  padding: 24px;
+  gap: 0;
+}
+.setup-logo { font-size: 48px; margin-bottom: 8px; }
+.setup-title { font-size: 22px; font-weight: 700; margin-bottom: 4px; }
+.setup-sub { font-size: 13px; color: #888; margin-bottom: 32px; }
+
+.setup-card {
+  background: #1a1a1a;
+  border: 1px solid #2e2e2e;
+  border-radius: 16px;
+  padding: 20px;
+  width: 100%;
+  max-width: 360px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.setup-card h2 { font-size: 13px; color: #888; text-transform: uppercase; letter-spacing: .06em; margin-bottom: 2px; }
+
+.field { display: flex; flex-direction: column; gap: 6px; }
+.field label { font-size: 12px; color: #888; text-transform: uppercase; letter-spacing: .05em; }
+.field select, .field input {
+  background: #111;
+  border: 1px solid #2e2e2e;
+  border-radius: 10px;
+  padding: 12px 14px;
+  font-size: 15px;
+  color: #f0f0f0;
+  width: 100%;
+  appearance: none;
+  -webkit-appearance: none;
+}
+.field select { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24'%3E%3Cpath fill='%23888' d='M7 10l5 5 5-5z'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 14px center; padding-right: 36px; }
+
+.btn-setup {
+  background: #22c55e;
+  color: #000;
+  font-size: 16px;
+  font-weight: 700;
+  border: none;
+  border-radius: 12px;
+  padding: 16px;
+  cursor: pointer;
+  width: 100%;
+  margin-top: 4px;
+}
+.btn-setup:active { opacity: .85; transform: scale(.98); }
+.btn-setup:disabled { opacity: .3; pointer-events: none; }
+
+/* ── Pantalla principal ───────────────────────────────────── */
+#screen-main { display: none; flex-direction: column; flex: 1; overflow: hidden; }
+
+/* Topbar */
+.topbar {
+  background: #111;
+  border-bottom: 1px solid #1e1e1e;
+  padding: 10px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-shrink: 0;
+  gap: 10px;
+}
+.topbar-left { display: flex; flex-direction: column; }
+.topbar-role { font-size: 11px; text-transform: uppercase; letter-spacing: .07em; }
+.topbar-session { font-size: 13px; font-weight: 600; color: #f0f0f0; }
+.topbar-right { display: flex; align-items: center; gap: 8px; }
+
+/* Status badges */
+.badge {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 20px;
+  white-space: nowrap;
+}
+.badge-online  { background: #052e16; color: #4ade80; border: 1px solid #166534; }
+.badge-offline { background: #2a1a0a; color: #fb923c; border: 1px solid #7c2d12; }
+.badge-queue   { background: #1e1b4b; color: #a5b4fc; border: 1px solid #3730a3; }
+
+.btn-icon {
+  background: #1a1a1a;
+  border: 1px solid #2e2e2e;
+  border-radius: 8px;
+  color: #888;
+  font-size: 13px;
+  padding: 6px 10px;
+  cursor: pointer;
+}
+.btn-icon:active { background: #2a2a2a; }
+
+/* Tabs */
+.tabs {
+  display: flex;
+  background: #111;
+  border-bottom: 1px solid #1e1e1e;
+  flex-shrink: 0;
+}
+.tab {
+  flex: 1;
+  padding: 11px 4px;
+  font-size: 12px;
+  font-weight: 500;
+  color: #666;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+}
+.tab.active { color: #f0f0f0; border-bottom-color: #22c55e; }
+
+/* ── Tab: Registrar ───────────────────────────────────────── */
+#tab-registrar {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 24px 20px;
+  gap: 20px;
+}
+
+/* Contador regresivo / cronómetro */
+.timer-wrap { text-align: center; }
+.timer-label { font-size: 11px; text-transform: uppercase; letter-spacing: .1em; color: #555; margin-bottom: 6px; }
+.timer-display {
+  font-size: 72px;
+  font-weight: 200;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -3px;
+  line-height: 1;
+  color: #333;
+  transition: color .3s;
+}
+.timer-display.running { color: #f0f0f0; }
+
+/* Botón de registro */
+.btn-reg {
+  width: 200px;
+  height: 200px;
+  border-radius: 50%;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition: transform .08s, filter .1s;
+  user-select: none;
+  -webkit-user-select: none;
+  position: relative;
+  overflow: hidden;
+}
+.btn-reg:active { transform: scale(.93); filter: brightness(1.15); }
+.btn-reg:disabled { opacity: .25; pointer-events: none; }
+.btn-reg .r-icon  { font-size: 48px; line-height: 1; }
+.btn-reg .r-label { font-size: 18px; font-weight: 700; }
+.btn-reg .r-hint  { font-size: 12px; opacity: .7; }
+
+/* Colores por rol */
+.role-llegada      .btn-reg { background: #1d4ed8; box-shadow: 0 0 40px #1d4ed840; }
+.role-inicio       .btn-reg { background: #d97706; box-shadow: 0 0 40px #d9770640; }
+.role-fin          .btn-reg { background: #16a34a; box-shadow: 0 0 40px #16a34a40; }
+.role-llegada  .topbar-role { color: #60a5fa; }
+.role-inicio   .topbar-role { color: #fbbf24; }
+.role-fin      .topbar-role { color: #4ade80; }
+
+@keyframes ripple {
+  0%   { transform: scale(0); opacity: .6; }
+  100% { transform: scale(4); opacity: 0; }
+}
+.ripple {
+  position: absolute;
+  border-radius: 50%;
+  width: 80px;
+  height: 80px;
+  background: rgba(255,255,255,.3);
+  animation: ripple .5s ease-out forwards;
+  pointer-events: none;
+}
+
+/* Último registro */
+.last-reg {
+  text-align: center;
+  min-height: 40px;
+}
+.last-reg .lv { font-size: 28px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.last-reg .lt { font-size: 12px; color: #666; margin-top: 2px; }
+
+/* ── Tab: Datos ───────────────────────────────────────────── */
+#tab-datos {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px 16px;
+  display: none;
+}
+
+.data-section { margin-bottom: 20px; }
+.data-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+.data-title { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; }
+.data-count { font-size: 11px; color: #666; background: #1a1a1a; padding: 3px 10px; border-radius: 20px; }
+
+.event-list { display: flex; flex-direction: column; gap: 4px; }
+.event-item {
+  background: #111;
+  border: 1px solid #1e1e1e;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  padding: 9px 12px;
+  gap: 10px;
+}
+.ei-n    { font-size: 11px; color: #555; min-width: 24px; }
+.ei-hora { font-size: 14px; font-weight: 600; font-variant-numeric: tabular-nums; flex: 1; }
+.ei-intv { font-size: 12px; color: #666; font-variant-numeric: tabular-nums; }
+.ei-src  { font-size: 10px; padding: 2px 7px; border-radius: 10px; }
+.src-online  { background: #052e16; color: #4ade80; }
+.src-offline { background: #1e1b4b; color: #a5b4fc; }
+
+.color-llegada { color: #60a5fa; }
+.color-inicio  { color: #fbbf24; }
+.color-fin     { color: #4ade80; }
+.empty-list { text-align: center; padding: 20px; color: #444; font-size: 13px; }
+
+/* ── Tab: Resumen ─────────────────────────────────────────── */
+#tab-resumen {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px 16px;
+  display: none;
+}
+.sgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 8px; }
+.sbox { background: #111; border: 1px solid #1e1e1e; border-radius: 12px; padding: 12px; }
+.sbox .sl { font-size: 10px; text-transform: uppercase; letter-spacing: .05em; color: #666; margin-bottom: 5px; }
+.sbox .sv { font-size: 22px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.sbox .su { font-size: 12px; color: #666; }
+.sec-label { font-size: 10px; text-transform: uppercase; letter-spacing: .08em; color: #555; margin: 16px 0 8px; font-weight: 600; }
+.rho-box { border-radius: 12px; padding: 14px 16px; margin: 8px 0; }
+.rho-box.good { background: #052e16; border: 1px solid #16a34a; }
+.rho-box.warn { background: #1c1400; border: 1px solid #d97706; }
+.rho-box.bad  { background: #1a0505; border: 1px solid #dc2626; }
+.rho-box .rl  { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; margin-bottom: 5px; }
+.rho-box.good .rl { color: #4ade80; }
+.rho-box.warn .rl { color: #fbbf24; }
+.rho-box.bad  .rl { color: #f87171; }
+.rho-box p { font-size: 13px; line-height: 1.5; color: #bbb; }
+.export-btn {
+  width: 100%;
+  padding: 16px;
+  border-radius: 12px;
+  font-size: 15px;
+  font-weight: 700;
+  background: #22c55e;
+  color: #000;
+  border: none;
+  cursor: pointer;
+  margin-top: 12px;
+}
+.export-btn:active { opacity: .85; }
+
+/* ── Spinner ──────────────────────────────────────────────── */
+.spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid #333; border-top-color: #888; border-radius: 50%; animation: spin .6s linear infinite; vertical-align: middle; margin-right: 6px; }
+@keyframes spin { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+
+<!-- ══════════════════════════════════════════════════════════
+     PANTALLA 1: SETUP
+════════════════════════════════════════════════════════════ -->
+<div id="screen-setup">
+  <div class="setup-logo">🎰</div>
+  <div class="setup-title">Casino ULS</div>
+  <div class="setup-sub">Medición de tiempos · Investigación de Operaciones</div>
+
+  <div class="setup-card">
+    <h2>Configura tu rol</h2>
+
+    <div class="field">
+      <label>Tu rol en esta sesión</label>
+      <select id="sel-rol">
+        <option value="">— Selecciona —</option>
+        <option value="llegada">Persona 1 · Llegadas</option>
+        <option value="inicio">Persona 2 · Inicio de atención</option>
+        <option value="fin">Persona 3 · Fin de atención</option>
+      </select>
+    </div>
+
+    <div class="field">
+      <label>Jornada</label>
+      <select id="sel-sesion">
+        <option value="d1-mediodia" data-label="Día 1 · Mediodía">Día 1 · Mediodía</option>
+        <option value="d1-tarde"    data-label="Día 1 · Tarde"   >Día 1 · Tarde</option>
+        <option value="d2-mediodia" data-label="Día 2 · Mediodía">Día 2 · Mediodía</option>
+        <option value="d2-tarde"    data-label="Día 2 · Tarde"   >Día 2 · Tarde</option>
+      </select>
+    </div>
+
+    <div class="field">
+      <label>N° cajas activas</label>
+      <input id="inp-cajas" type="number" min="1" max="20" value="3">
+    </div>
+
+    <button class="btn-setup" id="btn-entrar" onclick="entrar()" disabled>Entrar →</button>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════
+     PANTALLA 2: MAIN
+════════════════════════════════════════════════════════════ -->
+<div id="screen-main">
+
+  <!-- Topbar -->
+  <div class="topbar">
+    <div class="topbar-left">
+      <span class="topbar-role" id="lbl-rol">—</span>
+      <span class="topbar-session" id="lbl-sesion">—</span>
+    </div>
+    <div class="topbar-right">
+      <span class="badge badge-online" id="badge-conn">● Online</span>
+      <span class="badge badge-queue"  id="badge-queue" style="display:none">↑ 0</span>
+      <button class="btn-icon" onclick="syncManual()" title="Sincronizar pendientes">↺</button>
+      <button class="btn-icon" onclick="volverSetup()" title="Cambiar rol">✕</button>
+    </div>
+  </div>
+
+  <!-- Tabs -->
+  <div class="tabs">
+    <button class="tab active" onclick="showTab('registrar', this)">Registrar</button>
+    <button class="tab"        onclick="showTab('datos', this)">Datos</button>
+    <button class="tab"        onclick="showTab('resumen', this)">Resumen</button>
+  </div>
+
+  <!-- ── Tab Registrar ── -->
+  <div id="tab-registrar">
+    <div class="timer-wrap">
+      <div class="timer-label">Tiempo en jornada</div>
+      <div class="timer-display" id="timer-display">00:00</div>
+    </div>
+
+    <button class="btn-reg" id="btn-reg" onclick="registrarEvento(event)" disabled>
+      <span class="r-icon"  id="reg-icon">⬇</span>
+      <span class="r-label" id="reg-label">—</span>
+      <span class="r-hint"  id="reg-hint">—</span>
+    </button>
+
+    <div class="last-reg">
+      <div class="lv" id="last-val" style="color:#333">—</div>
+      <div class="lt" id="last-time"></div>
+    </div>
+  </div>
+
+  <!-- ── Tab Datos ── -->
+  <div id="tab-datos">
+    <div class="data-section">
+      <div class="data-header">
+        <span class="data-title color-llegada">⬇ Llegadas</span>
+        <span class="data-count" id="cnt-llegada">0</span>
+      </div>
+      <div class="event-list" id="list-llegada"><div class="empty-list">Sin datos</div></div>
+    </div>
+    <div class="data-section">
+      <div class="data-header">
+        <span class="data-title color-inicio">▶ Inicio atención</span>
+        <span class="data-count" id="cnt-inicio">0</span>
+      </div>
+      <div class="event-list" id="list-inicio"><div class="empty-list">Sin datos</div></div>
+    </div>
+    <div class="data-section">
+      <div class="data-header">
+        <span class="data-title color-fin">✓ Fin atención</span>
+        <span class="data-count" id="cnt-fin">0</span>
+      </div>
+      <div class="event-list" id="list-fin"><div class="empty-list">Sin datos</div></div>
+    </div>
+  </div>
+
+  <!-- ── Tab Resumen ── -->
+  <div id="tab-resumen">
+    <div id="resumen-content"><div class="empty-list" style="padding:40px">Cargando datos…</div></div>
+  </div>
+
+</div>
+
+<script type="module">
+import {
+  insertEvento, fetchSession, subscribeSession,
+  syncNow, qCount, serverNow
+} from './supabase.js';
+
+// ══════════════════════════════════════════════════════════════
+//  Estado de la app
+// ══════════════════════════════════════════════════════════════
+let rol, sessionId, sessionLabel, nCajas;
+let sessionEvents = [];   // cache local de todos los eventos de la sesión
+let jornada_start = null; // t_server del primer evento (referencia de tiempo)
+let timerIv = null;
+let unsubscribe = null;
+let online = navigator.onLine;
+
+// ── Setup de validación ───────────────────────────────────────
+document.getElementById('sel-rol').addEventListener('change', validarSetup);
+document.getElementById('sel-sesion').addEventListener('change', validarSetup);
+function validarSetup() {
+  document.getElementById('btn-entrar').disabled =
+    !document.getElementById('sel-rol').value;
+}
+
+// ── Entrar ───────────────────────────────────────────────────
+window.entrar = async function () {
+  rol          = document.getElementById('sel-rol').value;
+  const selSes = document.getElementById('sel-sesion');
+  sessionId    = selSes.value;
+  sessionLabel = selSes.options[selSes.selectedIndex].dataset.label;
+  nCajas       = parseInt(document.getElementById('inp-cajas').value) || 3;
+
+  // UI por rol
+  const roles = {
+    llegada: { icon:'⬇', label:'Llegó alguien', hint:'toca cada vez que llegue', color:'#60a5fa', text:'Persona 1 · Llegadas' },
+    inicio:  { icon:'▶', label:'Inicia atención', hint:'toca cuando empieza a ser atendido', color:'#fbbf24', text:'Persona 2 · Inicio atención' },
+    fin:     { icon:'✓', label:'Fin atención', hint:'toca cuando termina y pasa al siguiente', color:'#4ade80', text:'Persona 3 · Fin atención' },
+  };
+  const cfg = roles[rol];
+  document.getElementById('reg-icon').textContent  = cfg.icon;
+  document.getElementById('reg-label').textContent = cfg.label;
+  document.getElementById('reg-hint').textContent  = cfg.hint;
+  document.getElementById('last-val').style.color  = cfg.color;
+  document.getElementById('lbl-rol').textContent   = cfg.text;
+  document.getElementById('lbl-sesion').textContent = sessionLabel;
+
+  document.getElementById('screen-setup').style.display = 'none';
+  const main = document.getElementById('screen-main');
+  main.style.display = 'flex';
+  main.className = `role-${rol}`;
+
+  // Cargar eventos existentes
+  await cargarSesion();
+  // Suscribir realtime
+  unsubscribe = subscribeSession(sessionId, onRealtimeEvent);
+  // Habilitar botón
+  document.getElementById('btn-reg').disabled = false;
+  // Arrancar cronómetro
+  startTimer();
+  // Monitor de conexión
+  window.addEventListener('online',  onOnline);
+  window.addEventListener('offline', onOffline);
+  updateConnBadge();
+};
+
+// ── Volver a setup ────────────────────────────────────────────
+window.volverSetup = function () {
+  if (unsubscribe) { unsubscribe(); unsubscribe = null; }
+  clearInterval(timerIv);
+  window.removeEventListener('online', onOnline);
+  window.removeEventListener('offline', onOffline);
+  document.getElementById('screen-main').style.display = 'none';
+  document.getElementById('screen-setup').style.display = 'flex';
+  sessionEvents = [];
+  jornada_start = null;
+};
+
+// ══════════════════════════════════════════════════════════════
+//  Registrar evento
+// ══════════════════════════════════════════════════════════════
+window.registrarEvento = async function (e) {
+  const btn = document.getElementById('btn-reg');
+  btn.disabled = true;
+
+  // Ripple
+  const ripple = document.createElement('span');
+  ripple.className = 'ripple';
+  ripple.style.left = (e.offsetX - 40) + 'px';
+  ripple.style.top  = (e.offsetY - 40) + 'px';
+  btn.appendChild(ripple);
+  setTimeout(() => ripple.remove(), 600);
+
+  // Timestamp del servidor
+  const t_server = await serverNow();
+  const hora = new Date(t_server).toLocaleTimeString('es-CL', { hour12: false });
+
+  const row = {
+    session_id:    sessionId,
+    session_label: sessionLabel,
+    tipo:          rol,
+    t_server,
+    hora,
+  };
+
+  const { ok, offline } = await insertEvento(row);
+
+  if (ok) {
+    // Agregar al cache local si offline (realtime lo agrega si online)
+    if (offline) {
+      sessionEvents.push({ ...row, _offline: true });
+      renderDatos();
+    }
+    // Mostrar último valor
+    const prev = sessionEvents.filter(ev => ev.tipo === rol && !offline).at(-1);
+    if (prev) {
+      const diff = ((t_server - prev.t_server) / 1000).toFixed(1);
+      document.getElementById('last-val').textContent  = diff + 's';
+      document.getElementById('last-time').textContent = `desde el anterior · ${hora}`;
+    } else {
+      document.getElementById('last-val').textContent  = hora;
+      document.getElementById('last-time').textContent = 'primer registro';
+    }
+    if (navigator.vibrate) navigator.vibrate(offline ? [30, 30, 30] : 25);
+  }
+
+  updateQueueBadge();
+  setTimeout(() => { btn.disabled = false; }, 300); // anti-doble tap
+};
+
+// ── Realtime: nuevo evento de otro celular ────────────────────
+function onRealtimeEvent(row) {
+  // Evitar duplicados
+  if (!sessionEvents.find(e => e.t_server === row.t_server && e.tipo === row.tipo)) {
+    sessionEvents.push(row);
+    renderDatos();
+  }
+}
+
+// ══════════════════════════════════════════════════════════════
+//  Cargar sesión desde Supabase
+// ══════════════════════════════════════════════════════════════
+async function cargarSesion() {
+  try {
+    const rows = await fetchSession(sessionId);
+    sessionEvents = rows || [];
+    if (sessionEvents.length) {
+      jornada_start = sessionEvents[0].t_server;
+    }
+    renderDatos();
+  } catch {
+    // offline al cargar: arranca con cache vacío
+  }
+}
+
+// ══════════════════════════════════════════════════════════════
+//  Cronómetro
+// ══════════════════════════════════════════════════════════════
+function startTimer() {
+  const display = document.getElementById('timer-display');
+  const refTime = Date.now();
+  clearInterval(timerIv);
+  timerIv = setInterval(() => {
+    const s = Math.floor((Date.now() - refTime) / 1000);
+    const mm = String(Math.floor(s / 60)).padStart(2, '0');
+    const ss = String(s % 60).padStart(2, '0');
+    display.textContent = `${mm}:${ss}`;
+    display.classList.toggle('running', s > 0);
+  }, 500);
+}
+
+// ══════════════════════════════════════════════════════════════
+//  Tabs
+// ══════════════════════════════════════════════════════════════
+window.showTab = function(tab, btn) {
+  ['registrar','datos','resumen'].forEach(t => {
+    document.getElementById('tab-' + t).style.display = 'none';
+  });
+  document.querySelectorAll('.tab').forEach(b => b.classList.remove('active'));
+  document.getElementById('tab-' + tab).style.display = 'flex';
+  btn.classList.add('active');
+  if (tab === 'datos')    renderDatos();
+  if (tab === 'resumen')  renderResumen();
+};
+// Mostrar tab inicial
+document.getElementById('tab-registrar').style.display = 'flex';
+
+// ══════════════════════════════════════════════════════════════
+//  Render: Tab Datos
+// ══════════════════════════════════════════════════════════════
+function renderDatos() {
+  ['llegada','inicio','fin'].forEach(tipo => {
+    const evs = sessionEvents
+      .filter(e => e.tipo === tipo)
+      .sort((a,b) => a.t_server - b.t_server);
+
+    document.getElementById('cnt-' + tipo).textContent = evs.length + ' reg';
+
+    const list = document.getElementById('list-' + tipo);
+    if (!evs.length) {
+      list.innerHTML = '<div class="empty-list">Sin datos</div>';
+      return;
+    }
+    list.innerHTML = [...evs].reverse().map((ev, ri) => {
+      const i = evs.length - 1 - ri;
+      const prev = evs[i - 1];
+      const intv = prev
+        ? ((ev.t_server - prev.t_server) / 1000).toFixed(2) + 's'
+        : 'inicio';
+      const srcClass = ev._offline ? 'src-offline' : 'src-online';
+      const srcLabel = ev._offline ? 'local' : 'sync';
+      return `<div class="event-item">
+        <span class="ei-n">${i + 1}</span>
+        <span class="ei-hora color-${tipo}">${ev.hora}</span>
+        <span class="ei-intv">${intv}</span>
+        <span class="ei-src ${srcClass}">${srcLabel}</span>
+      </div>`;
+    }).join('');
+  });
+}
+
+// ══════════════════════════════════════════════════════════════
+//  Render: Tab Resumen
+// ══════════════════════════════════════════════════════════════
+function avg(a) { return a.length ? a.reduce((x,y) => x+y, 0) / a.length : 0; }
+function std(a) {
+  if (a.length < 2) return 0;
+  const m = avg(a);
+  return Math.sqrt(a.map(x => (x-m)**2).reduce((x,y) => x+y, 0) / (a.length - 1));
+}
+function intervals(arr) {
+  const r = [];
+  for (let i = 1; i < arr.length; i++)
+    r.push((arr[i].t_server - arr[i-1].t_server) / 1000);
+  return r;
+}
+
+function renderResumen() {
+  const el = document.getElementById('resumen-content');
+
+  const llegadas = sessionEvents.filter(e => e.tipo === 'llegada').sort((a,b) => a.t_server - b.t_server);
+  const inicios  = sessionEvents.filter(e => e.tipo === 'inicio' ).sort((a,b) => a.t_server - b.t_server);
+  const fines    = sessionEvents.filter(e => e.tipo === 'fin'    ).sort((a,b) => a.t_server - b.t_server);
+
+  const intLlegadas  = intervals(llegadas);
+  const intAtenciones = inicios.map((ini, i) => fines[i]
+    ? (fines[i].t_server - ini.t_server) / 1000
+    : null).filter(v => v !== null && v > 0);
+
+  if (!intLlegadas.length && !intAtenciones.length) {
+    el.innerHTML = '<div class="empty-list" style="padding:40px">Sin datos suficientes aún.</div>';
+    return;
+  }
+
+  const c = nCajas;
+  const lambda = intLlegadas.length  ? 1 / avg(intLlegadas)   : null;
+  const mu     = intAtenciones.length ? 1 / avg(intAtenciones) : null;
+  const rho    = (lambda && mu) ? lambda / (c * mu) : null;
+
+  const rhoClass = rho === null ? '' : rho >= 1 ? 'bad' : rho >= 0.8 ? 'warn' : 'good';
+  const rhoText  = rho === null ? '' : rho >= 1
+    ? `ρ = ${rho.toFixed(3)} ≥ 1 → cola infinita. El sistema colapsa con ${c} caja${c>1?'s':''}.`
+    : rho >= 0.8
+    ? `ρ = ${rho.toFixed(3)} → carga alta. Probables colas en peak con ${c} caja${c>1?'s':''}.`
+    : `ρ = ${rho.toFixed(3)} → sistema estable con ${c} caja${c>1?'s':''}.`;
+
+  el.innerHTML = `
+    <div class="sec-label">Llegadas — ${sessionLabel}</div>
+    <div class="sgrid">
+      <div class="sbox"><div class="sl">n registros</div><div class="sv">${llegadas.length}</div></div>
+      <div class="sbox"><div class="sl">Prom. entre llegadas</div><div class="sv">${intLlegadas.length ? avg(intLlegadas).toFixed(2) : '—'}<span class="su"> s</span></div></div>
+      <div class="sbox"><div class="sl">σ llegadas</div><div class="sv">${intLlegadas.length ? std(intLlegadas).toFixed(2) : '—'}</div></div>
+      <div class="sbox"><div class="sl">λ (person/s)</div><div class="sv" style="font-size:16px">${lambda ? lambda.toFixed(5) : '—'}</div></div>
+    </div>
+
+    <div class="sec-label">Atención (inicio→fin)</div>
+    <div class="sgrid">
+      <div class="sbox"><div class="sl">n pares medidos</div><div class="sv">${intAtenciones.length}</div></div>
+      <div class="sbox"><div class="sl">Prom. atención</div><div class="sv">${intAtenciones.length ? avg(intAtenciones).toFixed(2) : '—'}<span class="su"> s</span></div></div>
+      <div class="sbox"><div class="sl">σ atención</div><div class="sv">${intAtenciones.length ? std(intAtenciones).toFixed(2) : '—'}</div></div>
+      <div class="sbox"><div class="sl">μ (person/s)</div><div class="sv" style="font-size:16px">${mu ? mu.toFixed(5) : '—'}</div></div>
+    </div>
+
+    ${rho !== null ? `
+    <div class="sec-label">Factor de utilización · M/M/${c}</div>
+    <div class="rho-box ${rhoClass}">
+      <div class="rl">${rho>=1?'⚠ Sistema inestable':rho>=0.8?'⚡ Carga alta':'✓ Sistema estable'}</div>
+      <p>${rhoText}</p>
+    </div>` : ''}
+
+    <button class="export-btn" onclick="exportCSV()">⬇ Exportar CSV para Minitab</button>
+  `;
+}
+
+// ══════════════════════════════════════════════════════════════
+//  Export CSV
+// ══════════════════════════════════════════════════════════════
+window.exportCSV = function () {
+  const llegadas  = sessionEvents.filter(e=>e.tipo==='llegada').sort((a,b)=>a.t_server-b.t_server);
+  const inicios   = sessionEvents.filter(e=>e.tipo==='inicio' ).sort((a,b)=>a.t_server-b.t_server);
+  const fines     = sessionEvents.filter(e=>e.tipo==='fin'    ).sort((a,b)=>a.t_server-b.t_server);
+  const intLL     = intervals(llegadas);
+  const intAT     = inicios.map((ini,i)=>fines[i]?((fines[i].t_server-ini.t_server)/1000):null).filter(v=>v!==null&&v>0);
+
+  let csv = `# Casino ULS — ${sessionLabel}\r\n`;
+  csv    += `# Exportado: ${new Date().toLocaleString('es-CL')}\r\n`;
+  csv    += `# Cajas: ${nCajas}\r\n\r\n`;
+
+  csv += `tipo,n,hora,t_server_ms\r\n`;
+  [...llegadas,...inicios,...fines]
+    .sort((a,b)=>a.t_server-b.t_server)
+    .forEach((e,i)=>{ csv += `${e.tipo},${i+1},${e.hora},${e.t_server}\r\n`; });
+
+  if (intLL.length) {
+    csv += `\r\n# MINITAB — intervalos entre llegadas\r\nEntre_llegadas_s\r\n`;
+    csv += intLL.map(v=>v.toFixed(2)).join('\r\n') + '\r\n';
+  }
+  if (intAT.length) {
+    csv += `\r\n# MINITAB — tiempos de atención\r\nTiempo_atencion_s\r\n`;
+    csv += intAT.map(v=>v.toFixed(2)).join('\r\n') + '\r\n';
+  }
+
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href = url; a.download = `casino_uls_${sessionId}.csv`; a.click();
+  URL.revokeObjectURL(url);
+};
+
+// ══════════════════════════════════════════════════════════════
+//  Conectividad y cola
+// ══════════════════════════════════════════════════════════════
+function onOnline()  { online = true;  updateConnBadge(); syncManual(); }
+function onOffline() { online = false; updateConnBadge(); }
+
+function updateConnBadge() {
+  const b = document.getElementById('badge-conn');
+  b.className = online ? 'badge badge-online' : 'badge badge-offline';
+  b.textContent = online ? '● Online' : '○ Offline';
+  updateQueueBadge();
+}
+
+function updateQueueBadge() {
+  const n = qCount();
+  const b = document.getElementById('badge-queue');
+  b.style.display = n > 0 ? 'inline-block' : 'none';
+  b.textContent   = `↑ ${n}`;
+}
+
+window.syncManual = async function () {
+  const b = document.getElementById('badge-conn');
+  b.innerHTML = '<span class="spinner"></span>Sync…';
+  const { flushed, remaining } = await syncNow();
+  if (flushed > 0) await cargarSesion();
+  updateConnBadge();
+};
+
+// ══════════════════════════════════════════════════════════════
+//  Service Worker
+// ══════════════════════════════════════════════════════════════
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/sw.js').catch(() => {});
+}
+</script>
+
+</body>
+</html>
