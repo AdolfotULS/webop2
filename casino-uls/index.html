@@ -443,6 +443,27 @@ body {
 /* Spinner */
 .spinner { display: inline-block; width: 13px; height: 13px; border: 2px solid #d4d3cc; border-top-color: #666; border-radius: 50%; animation: spin .6s linear infinite; vertical-align: middle; margin-right: 5px; }
 @keyframes spin { to { transform: rotate(360deg); } }
+
+/* Sync state badges */
+.badge-saving    { background: #fffbeb; color: #b45309; border: 1px solid #fcd34d; }
+.badge-desynced  { background: #fff7ed; color: #c2410c; border: 1px solid #fdba74; }
+
+/* Event counter + undo */
+.event-counter {
+  width: 100%; max-width: 340px;
+  font-size: 12px; color: #555; text-align: center;
+  padding: 8px 12px;
+  background: #fff; border: 1px solid #d4d3cc; border-radius: 10px;
+  font-variant-numeric: tabular-nums;
+}
+.btn-undo {
+  width: 100%; max-width: 340px;
+  padding: 12px; border-radius: 12px;
+  border: 1.5px solid #d4d3cc; background: #fff;
+  color: #333; font-size: 14px; font-weight: 700; cursor: pointer;
+}
+.btn-undo:disabled { opacity: .3; pointer-events: none; }
+.btn-undo:active   { background: #f5f5f0; }
 </style>
 </head>
 <body>
@@ -535,7 +556,10 @@ body {
     </div>
     <div class="topbar-right">
       <span class="badge" id="coord-badge-status">—</span>
+      <span class="badge" id="coord-badge-sync" style="display:none">✓ Sync</span>
       <span class="badge badge-online" id="coord-badge-conn">● Online</span>
+      <button class="btn-icon" onclick="syncManualCoord()" title="Forzar sincronización">↺</button>
+      <button class="btn-icon" onclick="forceRefreshCoord()" title="Forzar refresh">⟳</button>
       <button class="btn-icon" onclick="volverSetup()" title="Salir">✕</button>
     </div>
   </div>
@@ -551,9 +575,11 @@ body {
     </div>
     <div class="topbar-right">
       <span class="badge" id="badge-status" style="display:none">—</span>
+      <span class="badge" id="badge-sync" style="display:none">✓ Sync</span>
       <span class="badge badge-online" id="badge-conn">● Online</span>
       <span class="badge badge-queue"  id="badge-queue" style="display:none">↑ 0</span>
-      <button class="btn-icon" onclick="syncManual()" title="Sincronizar">↺</button>
+      <button class="btn-icon" onclick="syncManual()" title="Forzar sincronización">↺</button>
+      <button class="btn-icon" onclick="forceRefresh()" title="Forzar refresh">⟳</button>
       <button class="btn-icon" onclick="volverSetup()" title="Salir">✕</button>
     </div>
   </div>
@@ -590,7 +616,7 @@ body {
 import {
   createSession, updateSession, fetchSessions,
   insertEvento, fetchSession, fetchOneSession, subscribeTable,
-  syncNow, qCount, serverNow
+  syncNow, qCount, serverNow, deleteEvento, removeFromQueue
 } from './supabase.js';
 
 // ══════════════════════════════════════════════════════════════
@@ -611,6 +637,8 @@ let selectedSession      = null;
 let selectedCoordSession = null;
 let coordMode            = 'nueva';   // nueva | retomar
 let visibilityHandler    = null;
+let sessionStartedAt     = null;   // ms timestamp — real session start
+let syncState            = 'synced'; // offline | saving | synced | desynced
 
 // Último registro por tipo (para display)
 const lastReg = { llegada: null, inicio: null, fin: null };
@@ -756,18 +784,28 @@ async function entrarCoordinador() {
   showScreen('coordinator');
   renderCoordBadge();
   renderCoordBody();
+  document.getElementById('coord-badge-sync').style.display = 'inline-block';
+  setSyncState(online ? 'synced' : 'offline');
 
   unsubSession = subscribeTable('sessions', `id=eq.${sessionId}`, (ev, row) => {
     if (row.status !== sessionStatus) {
+      if (row.started_at) sessionStartedAt = Number(new Date(row.started_at));
       sessionStatus = row.status;
       renderCoordBadge();
       renderCoordBody();
     }
   });
   unsubEventos = subscribeTable('eventos', `session_id=eq.${sessionId}`, (ev, row) => {
-    if (ev === 'INSERT' && !sessionEvents.find(e => e.t_server === row.t_server && e.tipo === row.tipo)) {
-      sessionEvents.push(row);
-      updateCoordStats();
+    if (ev === 'INSERT') {
+      const rowTs = Number(row.t_server);
+      const exists = sessionEvents.some(e =>
+        (e.id != null && e.id === row.id) ||
+        (Number(e.t_server) === rowTs && e.tipo === row.tipo)
+      );
+      if (!exists) {
+        sessionEvents.push({ ...row, t_server: rowTs });
+        updateCoordStats();
+      }
     }
   });
 
@@ -783,11 +821,14 @@ async function entrarCoordinadorRetomar() {
   sessionLabel = s.label;
   nCajas       = s.n_cajas;
   sessionStatus = s.status;
+  sessionStartedAt = s.started_at ? Number(new Date(s.started_at)) : null;
 
   document.getElementById('coord-lbl-session').textContent = sessionLabel;
   showScreen('coordinator');
   renderCoordBadge();
   renderCoordBody();
+  document.getElementById('coord-badge-sync').style.display = 'inline-block';
+  setSyncState(online ? 'synced' : 'offline');
 
   // Load existing events for stats
   try {
@@ -797,15 +838,23 @@ async function entrarCoordinadorRetomar() {
 
   unsubSession = subscribeTable('sessions', `id=eq.${sessionId}`, (ev, row) => {
     if (row.status !== sessionStatus) {
+      if (row.started_at) sessionStartedAt = Number(new Date(row.started_at));
       sessionStatus = row.status;
       renderCoordBadge();
       renderCoordBody();
     }
   });
   unsubEventos = subscribeTable('eventos', `session_id=eq.${sessionId}`, (ev, row) => {
-    if (ev === 'INSERT' && !sessionEvents.find(e => e.t_server === row.t_server && e.tipo === row.tipo)) {
-      sessionEvents.push(row);
-      updateCoordStats();
+    if (ev === 'INSERT') {
+      const rowTs = Number(row.t_server);
+      const exists = sessionEvents.some(e =>
+        (e.id != null && e.id === row.id) ||
+        (Number(e.t_server) === rowTs && e.tipo === row.tipo)
+      );
+      if (!exists) {
+        sessionEvents.push({ ...row, t_server: rowTs });
+        updateCoordStats();
+      }
     }
   });
 
@@ -821,6 +870,7 @@ async function entrarObservador() {
   sessionLabel = s.label;
   nCajas       = s.n_cajas;
   sessionStatus = s.status;
+  sessionStartedAt = s.started_at ? Number(new Date(s.started_at)) : null;
 
   const rolLabel = rol === 'fila' ? 'Observador de Fila' : 'Observador de Atención';
   const rolColor = rol === 'fila' ? '#1d4ed8' : '#15803d';
@@ -832,17 +882,28 @@ async function entrarObservador() {
   renderActionButtons();
   applySessionState(sessionStatus);
   await cargarSesion();
+  document.getElementById('badge-sync').style.display = 'inline-block';
+  setSyncState(online ? 'synced' : 'offline');
 
   unsubSession = subscribeTable('sessions', `id=eq.${sessionId}`, (ev, row) => {
     if (row.status !== sessionStatus) {
+      if (row.started_at) sessionStartedAt = Number(new Date(row.started_at));
       sessionStatus = row.status;
       applySessionState(sessionStatus);
     }
   });
   unsubEventos = subscribeTable('eventos', `session_id=eq.${sessionId}`, (ev, row) => {
-    if (ev === 'INSERT' && !sessionEvents.find(e => e.t_server === row.t_server && e.tipo === row.tipo)) {
-      sessionEvents.push(row);
-      renderDatos();
+    if (ev === 'INSERT') {
+      const rowTs = Number(row.t_server);
+      const exists = sessionEvents.some(e =>
+        (e.id != null && e.id === row.id) ||
+        (Number(e.t_server) === rowTs && e.tipo === row.tipo)
+      );
+      if (!exists) {
+        sessionEvents.push({ ...row, t_server: rowTs });
+        renderDatos();
+        updateEventCounter();
+      }
     }
   });
 
@@ -867,7 +928,9 @@ function renderActionButtons() {
           <span class="bo-label">LLEGÓ ALGUIEN</span>
           <span class="bo-hint">Toca cada vez que llegue un cliente</span>
         </div>
-      </button>`;
+      </button>
+      <div class="event-counter" id="event-counter">Llegadas: 0</div>
+      <button class="btn-undo" id="btn-undo" onclick="deshacerUltimo()" disabled>↩ Deshacer último</button>`;
     lastW.innerHTML = `
       <div class="last-item">
         <div><div class="li-label">Último registro</div><div class="li-hint" id="lh-llegada">—</div></div>
@@ -888,7 +951,9 @@ function renderActionButtons() {
           <span class="bo-label">FIN ATENCIÓN</span>
           <span class="bo-hint">Toca cuando termina y se va</span>
         </div>
-      </button>`;
+      </button>
+      <div class="event-counter" id="event-counter">Inicio: 0 · Fin: 0</div>
+      <button class="btn-undo" id="btn-undo" onclick="deshacerUltimo()" disabled>↩ Deshacer último</button>`;
     lastW.innerHTML = `
       <div class="last-item">
         <div><div class="li-label" style="color:#15803d">Último inicio</div><div class="li-hint" id="lh-inicio">—</div></div>
@@ -977,7 +1042,12 @@ window.registrarTipo = async function(tipo, e) {
   const hora     = new Date(t_server).toLocaleTimeString('es-CL', { hour12: false });
   const row      = { session_id: sessionId, session_label: sessionLabel, tipo, t_server, hora };
 
-  const { ok, offline } = await insertEvento(row);
+  setSyncState('saving');
+  const { ok, offline, flushed } = await insertEvento(row);
+
+  // If queued events were flushed, reload from DB to replace _offline entries
+  // with server rows (correct id, normalized t_server, no duplicates)
+  if (ok && flushed > 0) await cargarSesion();
 
   if (ok) {
     if (offline) { sessionEvents.push({ ...row, _offline: true }); renderDatos(); }
@@ -995,7 +1065,9 @@ window.registrarTipo = async function(tipo, e) {
     if (navigator.vibrate) navigator.vibrate(offline ? [30, 30, 30] : 30);
   }
 
+  setSyncState(qCount() > 0 ? 'desynced' : online ? 'synced' : 'offline');
   updateQueueBadge();
+  updateEventCounter();
   setTimeout(() => { if (sessionStatus === 'active') btn.disabled = false; }, 350);
 };
 
@@ -1084,7 +1156,7 @@ function updateCoordStats() {
 }
 
 function startCoordTimer() {
-  const ref = Date.now();
+  const ref = sessionStartedAt || Date.now();
   coordTimerIv = setInterval(() => {
     const el = document.getElementById('coord-timer');
     if (!el) { clearInterval(coordTimerIv); return; }
@@ -1099,6 +1171,7 @@ function startCoordTimer() {
 window.iniciarSesion = async function() {
   const started_at = await serverNow();
   await updateSession(sessionId, { status: 'active', started_at });
+  sessionStartedAt = started_at;
   sessionStatus = 'active';
   renderCoordBadge();
   renderCoordBody();
@@ -1118,7 +1191,10 @@ window.terminarSesion = async function() {
 // ══════════════════════════════════════════════════════════════
 async function cargarSesion() {
   try {
-    sessionEvents = (await fetchSession(sessionId)) || [];
+    const raw = (await fetchSession(sessionId)) || [];
+    // Normalize t_server to Number — DB returns bigint as number in JSON,
+    // but normalize defensively in case of string coercion from some paths
+    sessionEvents = raw.map(e => ({ ...e, t_server: Number(e.t_server) }));
     // Init lastReg from loaded data
     ['llegada','inicio','fin'].forEach(tipo => {
       const evs = sessionEvents.filter(e => e.tipo === tipo).sort((a,b) => a.t_server - b.t_server);
@@ -1131,6 +1207,7 @@ async function cargarSesion() {
       }
     });
     renderDatos();
+    updateEventCounter();
   } catch { /* offline */ }
 }
 
@@ -1139,7 +1216,7 @@ async function cargarSesion() {
 // ══════════════════════════════════════════════════════════════
 function startTimer() {
   stopTimer();
-  const ref = Date.now();
+  const ref = sessionStartedAt || Date.now();
   const display = document.getElementById('timer-display');
   timerIv = setInterval(() => {
     const s = Math.floor((Date.now() - ref) / 1000);
@@ -1173,8 +1250,14 @@ window.volverSetup = function() {
   rol                  = null;
   selectedSession      = null;
   sessionStatus        = null;
+  sessionStartedAt     = null;
+  syncState            = 'synced';
   coordMode            = 'nueva';
   selectedCoordSession = null;
+  const bs = document.getElementById('badge-sync');
+  const cs = document.getElementById('coord-badge-sync');
+  if (bs) bs.style.display = 'none';
+  if (cs) cs.style.display = 'none';
   Object.keys(lastReg).forEach(k => lastReg[k] = null);
   document.querySelectorAll('.role-btn').forEach(b =>
     b.classList.remove('sel-coord','sel-fila','sel-atencion')
@@ -1247,8 +1330,8 @@ function renderDatos() {
 // ══════════════════════════════════════════════════════════════
 //  Connectivity
 // ══════════════════════════════════════════════════════════════
-function onOnline()  { online = true;  updateConnBadge(); updateCoordConnBadge(); syncManual(); }
-function onOffline() { online = false; updateConnBadge(); updateCoordConnBadge(); }
+function onOnline()  { online = true;  updateConnBadge(); updateCoordConnBadge(); setSyncState(qCount() > 0 ? 'desynced' : 'synced'); syncManual(); }
+function onOffline() { online = false; updateConnBadge(); updateCoordConnBadge(); setSyncState('offline'); }
 
 function updateConnBadge() {
   const b = document.getElementById('badge-conn');
@@ -1272,11 +1355,138 @@ function updateQueueBadge() {
 }
 
 window.syncManual = async function() {
+  setSyncState('saving');
   const b = document.getElementById('badge-conn');
   if (b) b.innerHTML = '<span class="spinner"></span>Sync…';
   const { flushed } = await syncNow();
   if (flushed > 0) await cargarSesion();
   updateConnBadge();
+  setSyncState(qCount() > 0 ? 'desynced' : online ? 'synced' : 'offline');
+};
+
+// ══════════════════════════════════════════════════════════════
+//  Sync state badge
+// ══════════════════════════════════════════════════════════════
+function setSyncState(state) {
+  syncState = state;
+  const map = {
+    offline:  ['badge badge-offline',   '○ Sin conexión'],
+    saving:   ['badge badge-saving',    '⏳ Guardando…'],
+    synced:   ['badge badge-online',    '✓ Sincronizado'],
+    desynced: ['badge badge-desynced',  '⚠ Desincronizado'],
+  };
+  const [cls, text] = map[state] || ['badge', '—'];
+  ['badge-sync', 'coord-badge-sync'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el && el.style.display !== 'none') { el.className = cls; el.textContent = text; }
+  });
+}
+
+// ══════════════════════════════════════════════════════════════
+//  Force refresh / sync for coordinator
+// ══════════════════════════════════════════════════════════════
+window.syncManualCoord = async function() {
+  setSyncState('saving');
+  await syncNow();
+  updateCoordConnBadge();
+  setSyncState(qCount() > 0 ? 'desynced' : online ? 'synced' : 'offline');
+};
+
+window.forceRefreshCoord = async function() {
+  try {
+    const s = await fetchOneSession(sessionId);
+    if (s) {
+      if (s.started_at) sessionStartedAt = Number(new Date(s.started_at));
+      if (s.status !== sessionStatus) {
+        sessionStatus = s.status;
+        renderCoordBadge();
+        renderCoordBody();
+      }
+    }
+    sessionEvents = (await fetchSession(sessionId)) || [];
+    updateCoordStats();
+  } catch {}
+};
+
+// ══════════════════════════════════════════════════════════════
+//  Force refresh for observer
+// ══════════════════════════════════════════════════════════════
+window.forceRefresh = async function() {
+  try {
+    const s = await fetchOneSession(sessionId);
+    if (s) {
+      if (s.started_at) sessionStartedAt = Number(new Date(s.started_at));
+      if (s.status !== sessionStatus) {
+        sessionStatus = s.status;
+        applySessionState(sessionStatus);
+      }
+    }
+  } catch {}
+  await cargarSesion();
+};
+
+// ══════════════════════════════════════════════════════════════
+//  Event counter display
+// ══════════════════════════════════════════════════════════════
+function updateEventCounter() {
+  const el = document.getElementById('event-counter');
+  if (!el) return;
+  const tipos = rol === 'fila' ? ['llegada'] : ['inicio', 'fin'];
+  const labels = { llegada: 'Llegadas', inicio: 'Inicio', fin: 'Fin' };
+  const parts = tipos.map(t => {
+    const all     = sessionEvents.filter(e => e.tipo === t);
+    const nOffline = all.filter(e => e._offline).length;
+    const nSync   = all.length - nOffline;
+    const synced  = nOffline === 0 ? ' ✓' : ` (${nSync} sync, ${nOffline} local)`;
+    return `${labels[t]}: ${all.length}${synced}`;
+  });
+  el.textContent = parts.join(' · ');
+
+  const undoBtn = document.getElementById('btn-undo');
+  if (undoBtn) {
+    const hasAny = tipos.some(t => sessionEvents.some(e => e.tipo === t));
+    undoBtn.disabled = !hasAny;
+  }
+}
+
+// ══════════════════════════════════════════════════════════════
+//  Undo last event
+// ══════════════════════════════════════════════════════════════
+window.deshacerUltimo = async function() {
+  const tipos = rol === 'fila' ? ['llegada'] : ['inicio', 'fin'];
+  const candidates = sessionEvents
+    .filter(e => tipos.includes(e.tipo))
+    .sort((a, b) => b.t_server - a.t_server);
+  if (!candidates.length) return;
+
+  const last = candidates[0];
+  const idx  = sessionEvents.indexOf(last);
+
+  if (last._offline) {
+    removeFromQueue(last.t_server, last.tipo);
+  } else if (last.id) {
+    try { await deleteEvento(last.id); } catch {}
+  }
+
+  sessionEvents.splice(idx, 1);
+
+  // Reset lastReg for that tipo
+  const remaining = sessionEvents
+    .filter(e => e.tipo === last.tipo)
+    .sort((a, b) => b.t_server - a.t_server);
+  if (remaining.length) {
+    const prev = remaining[0];
+    lastReg[last.tipo] = { t_server: prev.t_server };
+    setLastDisplay(last.tipo, prev.hora, '');
+  } else {
+    lastReg[last.tipo] = null;
+    setLastDisplay(last.tipo, '—', '—');
+  }
+
+  renderDatos();
+  updateEventCounter();
+  updateQueueBadge();
+  setSyncState(qCount() > 0 ? 'desynced' : online ? 'synced' : 'offline');
 };
 
 // ══════════════════════════════════════════════════════════════

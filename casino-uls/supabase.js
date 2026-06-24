@@ -85,14 +85,14 @@ async function qFlush() {
 // ── Eventos ───────────────────────────────────────────────────────
 export async function insertEvento(row) {
   try {
-    await qFlush();
+    const flushed = await qFlush();
     const [inserted] = await req('POST', EVENTOS, [row]);
-    return { ok: true, offline: false, row: inserted };
+    return { ok: true, offline: false, row: inserted, flushed };
   } catch {
     const q = qLoad();
     q.push(row);
     qSave(q);
-    return { ok: true, offline: true, row };
+    return { ok: true, offline: true, row, flushed: 0 };
   }
 }
 
@@ -103,6 +103,28 @@ export async function fetchSession(session_id) {
 export async function fetchOneSession(id) {
   const rows = await req('GET', `${SESSIONS}?id=eq.${encodeURIComponent(id)}&select=*&limit=1`);
   return rows[0] ?? null;
+}
+
+export async function deleteEvento(id) {
+  await fetch(`${SB_URL()}/rest/v1/${EVENTOS}?id=eq.${encodeURIComponent(id)}`, {
+    method: 'DELETE',
+    headers: {
+      'apikey': SB_KEY(),
+      'Authorization': `Bearer ${SB_KEY()}`,
+    },
+  });
+}
+
+export function removeFromQueue(t_server, tipo) {
+  const q = qLoad();
+  for (let i = q.length - 1; i >= 0; i--) {
+    if (q[i].t_server === t_server && q[i].tipo === tipo) {
+      q.splice(i, 1);
+      qSave(q);
+      return true;
+    }
+  }
+  return false;
 }
 
 export async function syncNow() {
