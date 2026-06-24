@@ -8,178 +8,231 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <title>Casino ULS</title>
 
-<!-- ══ CREDENCIALES SUPABASE ══════════════════════════════════════════
-     Reemplaza estos valores con los tuyos desde supabase.com → Settings → API
-     No subas el anon key a un repo público si la tabla tiene datos sensibles.
-     Para producción usa variables de entorno en Vercel (ver README).
-================================================================== -->
 <script>
   window.SB_URL = 'https://uapkjmpkdlgqfyuqbooe.supabase.co';
   window.SB_KEY = 'sb_publishable_v-4tDSYuoleZQqilDBBc_Q_D8MFEZV6';
 </script>
 
 <style>
-/* ── Reset y base ─────────────────────────────────────────── */
+/* ── Reset ──────────────────────────────────────────────────── */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
 html, body { height: 100%; }
 body {
   background: #0a0a0a;
   color: #f0f0f0;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  display: flex;
-  flex-direction: column;
   height: 100dvh;
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
 
-/* ── Pantalla de setup ────────────────────────────────────── */
+/* ── Screens ────────────────────────────────────────────────── */
+.screen { display: none; flex-direction: column; flex: 1; overflow: hidden; }
+.screen.active { display: flex; }
+
+/* ── Setup screen ───────────────────────────────────────────── */
 #screen-setup {
+  align-items: center;
+  overflow-y: auto;
+  padding: 20px 16px 32px;
+  gap: 0;
+}
+.setup-logo  { font-size: 40px; margin-top: 20px; margin-bottom: 6px; }
+.setup-title { font-size: 20px; font-weight: 700; margin-bottom: 2px; }
+.setup-sub   { font-size: 12px; color: #555; margin-bottom: 22px; }
+
+.setup-card {
+  background: #111;
+  border: 1px solid #1e1e1e;
+  border-radius: 18px;
+  padding: 18px;
+  width: 100%;
+  max-width: 400px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.sec-head {
+  font-size: 11px;
+  color: #555;
+  text-transform: uppercase;
+  letter-spacing: .07em;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+/* Role buttons grid */
+.role-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.role-btn {
+  background: #0f0f0f;
+  border: 1.5px solid #1e1e1e;
+  border-radius: 12px;
+  padding: 14px 8px;
+  cursor: pointer;
+  text-align: center;
+  color: #666;
+  font-size: 12px;
+  font-weight: 600;
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
-  flex: 1;
-  padding: 24px;
-  gap: 0;
+  gap: 6px;
+  transition: border-color .12s, color .12s, background .12s;
 }
-.setup-logo { font-size: 48px; margin-bottom: 8px; }
-.setup-title { font-size: 22px; font-weight: 700; margin-bottom: 4px; }
-.setup-sub { font-size: 13px; color: #888; margin-bottom: 32px; }
+.role-btn .rb-icon { font-size: 22px; }
+.role-btn:active   { opacity: .8; }
+.role-btn.sel-coord  { border-color: #a78bfa; color: #f0f0f0; background: #120d1f; }
+.role-btn.sel-blue   { border-color: #3b82f6; color: #f0f0f0; background: #060f1f; }
+.role-btn.sel-yellow { border-color: #f59e0b; color: #f0f0f0; background: #181000; }
+.role-btn.sel-green  { border-color: #22c55e; color: #f0f0f0; background: #071209; }
 
-.setup-card {
-  background: #1a1a1a;
-  border: 1px solid #2e2e2e;
-  border-radius: 16px;
-  padding: 20px;
-  width: 100%;
-  max-width: 360px;
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-}
-.setup-card h2 { font-size: 13px; color: #888; text-transform: uppercase; letter-spacing: .06em; margin-bottom: 2px; }
-
+/* Field */
 .field { display: flex; flex-direction: column; gap: 6px; }
-.field label { font-size: 12px; color: #888; text-transform: uppercase; letter-spacing: .05em; }
-.field select, .field input {
-  background: #111;
-  border: 1px solid #2e2e2e;
+.field label { font-size: 11px; color: #555; text-transform: uppercase; letter-spacing: .06em; font-weight: 600; }
+.field input {
+  background: #0a0a0a;
+  border: 1px solid #222;
   border-radius: 10px;
-  padding: 12px 14px;
+  padding: 11px 13px;
   font-size: 15px;
   color: #f0f0f0;
   width: 100%;
-  appearance: none;
-  -webkit-appearance: none;
 }
-.field select { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24'%3E%3Cpath fill='%23888' d='M7 10l5 5 5-5z'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 14px center; padding-right: 36px; }
+.field input:focus { outline: none; border-color: #333; }
+
+/* Session list in setup */
+.session-list-setup {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 220px;
+  overflow-y: auto;
+}
+.session-item {
+  background: #0f0f0f;
+  border: 1.5px solid #1e1e1e;
+  border-radius: 10px;
+  padding: 10px 13px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  transition: border-color .12s;
+}
+.session-item:active { background: #1a1a1a; }
+.session-item.selected { border-color: #22c55e; }
+
+.si-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.si-dot.waiting { background: #f59e0b; }
+.si-dot.active  { background: #22c55e; box-shadow: 0 0 6px #22c55e80; }
+.si-dot.ended   { background: #333; }
+
+.si-info { flex: 1; min-width: 0; }
+.si-label { font-size: 14px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.si-meta  { font-size: 11px; color: #444; margin-top: 2px; }
+.si-status { font-size: 11px; font-weight: 700; white-space: nowrap; }
+.si-status.waiting { color: #f59e0b; }
+.si-status.active  { color: #22c55e; }
+.si-status.ended   { color: #444; }
+
+.empty-sessions { text-align: center; padding: 18px; color: #444; font-size: 13px; }
+
+.btn-refresh {
+  background: none;
+  border: none;
+  color: #555;
+  font-size: 16px;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 6px;
+}
+.btn-refresh:active { color: #888; }
 
 .btn-setup {
   background: #22c55e;
   color: #000;
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 700;
   border: none;
   border-radius: 12px;
-  padding: 16px;
+  padding: 15px;
   cursor: pointer;
   width: 100%;
-  margin-top: 4px;
 }
-.btn-setup:active { opacity: .85; transform: scale(.98); }
-.btn-setup:disabled { opacity: .3; pointer-events: none; }
+.btn-setup:active   { opacity: .85; transform: scale(.98); }
+.btn-setup:disabled { opacity: .2; pointer-events: none; }
 
-/* ── Pantalla principal ───────────────────────────────────── */
-#screen-main { display: none; flex-direction: column; flex: 1; overflow: hidden; }
-
-/* Topbar */
+/* ── Topbar (shared) ────────────────────────────────────────── */
 .topbar {
-  background: #111;
-  border-bottom: 1px solid #1e1e1e;
-  padding: 10px 16px;
+  background: #0d0d0d;
+  border-bottom: 1px solid #161616;
+  padding: 10px 13px;
   display: flex;
   align-items: center;
   justify-content: space-between;
   flex-shrink: 0;
-  gap: 10px;
+  gap: 8px;
 }
-.topbar-left { display: flex; flex-direction: column; }
-.topbar-role { font-size: 11px; text-transform: uppercase; letter-spacing: .07em; }
-.topbar-session { font-size: 13px; font-weight: 600; color: #f0f0f0; }
-.topbar-right { display: flex; align-items: center; gap: 8px; }
+.topbar-left { display: flex; flex-direction: column; min-width: 0; flex: 1; }
+.topbar-role    { font-size: 11px; text-transform: uppercase; letter-spacing: .07em; color: #555; }
+.topbar-session { font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.topbar-right   { display: flex; align-items: center; gap: 5px; flex-shrink: 0; }
 
-/* Status badges */
-.badge {
-  font-size: 11px;
-  font-weight: 600;
-  padding: 4px 10px;
-  border-radius: 20px;
-  white-space: nowrap;
-}
-.badge-online  { background: #052e16; color: #4ade80; border: 1px solid #166534; }
-.badge-offline { background: #2a1a0a; color: #fb923c; border: 1px solid #7c2d12; }
-.badge-queue   { background: #1e1b4b; color: #a5b4fc; border: 1px solid #3730a3; }
+/* Badges */
+.badge { font-size: 11px; font-weight: 600; padding: 4px 9px; border-radius: 20px; white-space: nowrap; }
+.badge-online  { background: #042010; color: #4ade80; border: 1px solid #14532d; }
+.badge-offline { background: #200a00; color: #fb923c; border: 1px solid #7c2d12; }
+.badge-queue   { background: #0f0d2a; color: #a5b4fc; border: 1px solid #312e81; }
+.badge-waiting { background: #150c00; color: #fbbf24; border: 1px solid #78350f; }
+.badge-active  { background: #042010; color: #4ade80; border: 1px solid #14532d; }
+.badge-ended   { background: #111; color: #444; border: 1px solid #222; }
 
 .btn-icon {
-  background: #1a1a1a;
-  border: 1px solid #2e2e2e;
+  background: #161616;
+  border: 1px solid #202020;
   border-radius: 8px;
-  color: #888;
+  color: #555;
   font-size: 13px;
-  padding: 6px 10px;
+  padding: 6px 9px;
   cursor: pointer;
 }
-.btn-icon:active { background: #2a2a2a; }
+.btn-icon:active { background: #1e1e1e; color: #888; }
 
-/* Tabs */
-.tabs {
-  display: flex;
-  background: #111;
-  border-bottom: 1px solid #1e1e1e;
-  flex-shrink: 0;
-}
-.tab {
-  flex: 1;
-  padding: 11px 4px;
-  font-size: 12px;
-  font-weight: 500;
-  color: #666;
-  background: none;
-  border: none;
-  border-bottom: 2px solid transparent;
-  cursor: pointer;
-}
-.tab.active { color: #f0f0f0; border-bottom-color: #22c55e; }
-
-/* ── Tab: Registrar ───────────────────────────────────────── */
-#tab-registrar {
+/* ── Coordinator screen ─────────────────────────────────────── */
+.coord-body {
   flex: 1;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 24px 20px;
-  gap: 20px;
+  padding: 28px 24px;
+  gap: 22px;
+  overflow-y: auto;
 }
-
-/* Contador regresivo / cronómetro */
-.timer-wrap { text-align: center; }
-.timer-label { font-size: 11px; text-transform: uppercase; letter-spacing: .1em; color: #555; margin-bottom: 6px; }
-.timer-display {
-  font-size: 72px;
+.coord-state-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: .1em;
+  color: #444;
+  font-weight: 600;
+}
+.coord-timer {
+  font-size: 56px;
   font-weight: 200;
   font-variant-numeric: tabular-nums;
-  letter-spacing: -3px;
+  letter-spacing: -2px;
+  color: #f0f0f0;
   line-height: 1;
-  color: #333;
-  transition: color .3s;
 }
-.timer-display.running { color: #f0f0f0; }
 
-/* Botón de registro */
-.btn-reg {
-  width: 200px;
-  height: 200px;
+/* Big action buttons */
+.btn-action {
+  width: 190px;
+  height: 190px;
   border-radius: 50%;
   border: none;
   cursor: pointer;
@@ -188,203 +241,295 @@ body {
   align-items: center;
   justify-content: center;
   gap: 6px;
+  font-weight: 700;
   transition: transform .08s, filter .1s;
   user-select: none;
   -webkit-user-select: none;
   position: relative;
   overflow: hidden;
 }
-.btn-reg:active { transform: scale(.93); filter: brightness(1.15); }
-.btn-reg:disabled { opacity: .25; pointer-events: none; }
-.btn-reg .r-icon  { font-size: 48px; line-height: 1; }
-.btn-reg .r-label { font-size: 18px; font-weight: 700; }
+.btn-action:active  { transform: scale(.93); filter: brightness(1.15); }
+.btn-action:disabled { opacity: .3; pointer-events: none; }
+.btn-action .a-icon  { font-size: 42px; line-height: 1; }
+.btn-action .a-label { font-size: 16px; }
+.btn-action .a-hint  { font-size: 12px; opacity: .65; font-weight: 400; }
+.btn-action.start { background: #16a34a; box-shadow: 0 0 50px #16a34a35; }
+.btn-action.stop  { background: #b91c1c; box-shadow: 0 0 50px #b91c1c35; }
+
+/* Live stats */
+.live-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  width: 100%;
+  max-width: 320px;
+}
+.stat-box {
+  background: #0f0f0f;
+  border: 1px solid #1a1a1a;
+  border-radius: 12px;
+  padding: 12px 8px;
+  text-align: center;
+}
+.stat-box .sb-n { font-size: 30px; font-weight: 600; font-variant-numeric: tabular-nums; line-height: 1; }
+.stat-box .sb-l { font-size: 10px; text-transform: uppercase; letter-spacing: .06em; color: #444; margin-top: 4px; }
+
+.ended-wrap {
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+.ended-icon  { font-size: 52px; }
+.ended-title { font-size: 19px; font-weight: 700; }
+.ended-sub   { font-size: 13px; color: #555; }
+
+.btn-secondary {
+  background: #161616;
+  border: 1px solid #252525;
+  color: #ccc;
+  font-size: 14px;
+  font-weight: 600;
+  border-radius: 12px;
+  padding: 13px 26px;
+  cursor: pointer;
+  width: 100%;
+  max-width: 260px;
+}
+.btn-secondary:active { background: #1e1e1e; }
+.btn-secondary.green  { background: #052e16; border-color: #166534; color: #4ade80; }
+
+/* ── Observer main ──────────────────────────────────────────── */
+.tabs {
+  display: flex;
+  background: #0d0d0d;
+  border-bottom: 1px solid #161616;
+  flex-shrink: 0;
+}
+.tab {
+  flex: 1;
+  padding: 11px 4px;
+  font-size: 12px;
+  font-weight: 500;
+  color: #444;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+}
+.tab.active { color: #f0f0f0; border-bottom-color: #22c55e; }
+
+#tab-registrar {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  gap: 18px;
+}
+.timer-wrap   { text-align: center; }
+.timer-label  { font-size: 11px; text-transform: uppercase; letter-spacing: .1em; color: #444; margin-bottom: 6px; }
+.timer-display {
+  font-size: 68px;
+  font-weight: 200;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -3px;
+  line-height: 1;
+  color: #222;
+  transition: color .3s;
+}
+.timer-display.running { color: #f0f0f0; }
+
+.state-msg {
+  text-align: center;
+  padding: 12px 18px;
+  border-radius: 12px;
+  font-size: 13px;
+  font-weight: 600;
+  display: none;
+  max-width: 280px;
+}
+.state-msg.show      { display: block; }
+.state-msg.waiting   { background: #150c00; border: 1px solid #78350f; color: #fbbf24; }
+.state-msg.ended     { background: #111;    border: 1px solid #1e1e1e; color: #444; }
+
+.btn-reg {
+  width: 190px; height: 190px;
+  border-radius: 50%; border: none; cursor: pointer;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 6px; transition: transform .08s, filter .1s;
+  user-select: none; -webkit-user-select: none;
+  position: relative; overflow: hidden;
+}
+.btn-reg:active   { transform: scale(.93); filter: brightness(1.15); }
+.btn-reg:disabled { opacity: .2; pointer-events: none; }
+.btn-reg .r-icon  { font-size: 46px; line-height: 1; }
+.btn-reg .r-label { font-size: 17px; font-weight: 700; }
 .btn-reg .r-hint  { font-size: 12px; opacity: .7; }
 
-/* Colores por rol */
-.role-llegada      .btn-reg { background: #1d4ed8; box-shadow: 0 0 40px #1d4ed840; }
-.role-inicio       .btn-reg { background: #d97706; box-shadow: 0 0 40px #d9770640; }
-.role-fin          .btn-reg { background: #16a34a; box-shadow: 0 0 40px #16a34a40; }
-.role-llegada  .topbar-role { color: #60a5fa; }
-.role-inicio   .topbar-role { color: #fbbf24; }
-.role-fin      .topbar-role { color: #4ade80; }
+.role-llegada .btn-reg { background: #1d4ed8; box-shadow: 0 0 40px #1d4ed830; }
+.role-inicio  .btn-reg { background: #b45309; box-shadow: 0 0 40px #b4530930; }
+.role-fin     .btn-reg { background: #15803d; box-shadow: 0 0 40px #15803d30; }
+.role-llegada .topbar-role { color: #60a5fa; }
+.role-inicio  .topbar-role { color: #fbbf24; }
+.role-fin     .topbar-role { color: #4ade80; }
 
-@keyframes ripple {
-  0%   { transform: scale(0); opacity: .6; }
-  100% { transform: scale(4); opacity: 0; }
-}
-.ripple {
-  position: absolute;
-  border-radius: 50%;
-  width: 80px;
-  height: 80px;
-  background: rgba(255,255,255,.3);
-  animation: ripple .5s ease-out forwards;
-  pointer-events: none;
-}
+@keyframes ripple { 0% { transform: scale(0); opacity: .6; } 100% { transform: scale(4); opacity: 0; } }
+.ripple { position: absolute; border-radius: 50%; width: 80px; height: 80px; background: rgba(255,255,255,.25); animation: ripple .5s ease-out forwards; pointer-events: none; }
 
-/* Último registro */
-.last-reg {
-  text-align: center;
-  min-height: 40px;
-}
-.last-reg .lv { font-size: 28px; font-weight: 600; font-variant-numeric: tabular-nums; }
-.last-reg .lt { font-size: 12px; color: #666; margin-top: 2px; }
+.last-reg { text-align: center; min-height: 40px; }
+.last-reg .lv { font-size: 26px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.last-reg .lt { font-size: 12px; color: #444; margin-top: 2px; }
 
-/* ── Tab: Datos ───────────────────────────────────────────── */
-#tab-datos {
-  flex: 1;
-  overflow-y: auto;
-  padding: 12px 16px;
-  display: none;
+/* Tabs datos / resumen */
+#tab-datos, #tab-resumen {
+  flex: 1; overflow-y: auto; padding: 12px 14px; display: none;
 }
-
-.data-section { margin-bottom: 20px; }
-.data-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 8px;
-}
-.data-title { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; }
-.data-count { font-size: 11px; color: #666; background: #1a1a1a; padding: 3px 10px; border-radius: 20px; }
-
-.event-list { display: flex; flex-direction: column; gap: 4px; }
-.event-item {
-  background: #111;
-  border: 1px solid #1e1e1e;
-  border-radius: 10px;
-  display: flex;
-  align-items: center;
-  padding: 9px 12px;
-  gap: 10px;
-}
-.ei-n    { font-size: 11px; color: #555; min-width: 24px; }
+.data-section  { margin-bottom: 20px; }
+.data-header   { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+.data-title    { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; }
+.data-count    { font-size: 11px; color: #444; background: #0f0f0f; padding: 3px 10px; border-radius: 20px; }
+.event-list    { display: flex; flex-direction: column; gap: 4px; }
+.event-item    { background: #0f0f0f; border: 1px solid #161616; border-radius: 10px; display: flex; align-items: center; padding: 9px 12px; gap: 10px; }
+.ei-n    { font-size: 11px; color: #333; min-width: 22px; }
 .ei-hora { font-size: 14px; font-weight: 600; font-variant-numeric: tabular-nums; flex: 1; }
-.ei-intv { font-size: 12px; color: #666; font-variant-numeric: tabular-nums; }
+.ei-intv { font-size: 12px; color: #444; font-variant-numeric: tabular-nums; }
 .ei-src  { font-size: 10px; padding: 2px 7px; border-radius: 10px; }
-.src-online  { background: #052e16; color: #4ade80; }
-.src-offline { background: #1e1b4b; color: #a5b4fc; }
+.src-online  { background: #042010; color: #4ade80; }
+.src-offline { background: #0f0d2a; color: #a5b4fc; }
 
 .color-llegada { color: #60a5fa; }
 .color-inicio  { color: #fbbf24; }
 .color-fin     { color: #4ade80; }
-.empty-list { text-align: center; padding: 20px; color: #444; font-size: 13px; }
+.empty-list    { text-align: center; padding: 20px; color: #333; font-size: 13px; }
 
-/* ── Tab: Resumen ─────────────────────────────────────────── */
-#tab-resumen {
-  flex: 1;
-  overflow-y: auto;
-  padding: 12px 16px;
-  display: none;
-}
-.sgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 8px; }
-.sbox { background: #111; border: 1px solid #1e1e1e; border-radius: 12px; padding: 12px; }
-.sbox .sl { font-size: 10px; text-transform: uppercase; letter-spacing: .05em; color: #666; margin-bottom: 5px; }
-.sbox .sv { font-size: 22px; font-weight: 600; font-variant-numeric: tabular-nums; }
-.sbox .su { font-size: 12px; color: #666; }
-.sec-label { font-size: 10px; text-transform: uppercase; letter-spacing: .08em; color: #555; margin: 16px 0 8px; font-weight: 600; }
-.rho-box { border-radius: 12px; padding: 14px 16px; margin: 8px 0; }
-.rho-box.good { background: #052e16; border: 1px solid #16a34a; }
-.rho-box.warn { background: #1c1400; border: 1px solid #d97706; }
-.rho-box.bad  { background: #1a0505; border: 1px solid #dc2626; }
+.sgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px; }
+.sbox  { background: #0f0f0f; border: 1px solid #161616; border-radius: 12px; padding: 12px; }
+.sbox .sl { font-size: 10px; text-transform: uppercase; letter-spacing: .05em; color: #444; margin-bottom: 4px; }
+.sbox .sv { font-size: 21px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.sbox .su { font-size: 12px; color: #444; }
+.res-sec-label { font-size: 10px; text-transform: uppercase; letter-spacing: .08em; color: #333; margin: 14px 0 7px; font-weight: 600; }
+.rho-box { border-radius: 12px; padding: 13px 15px; margin: 6px 0; }
+.rho-box.good { background: #042010; border: 1px solid #14532d; }
+.rho-box.warn { background: #150c00; border: 1px solid #78350f; }
+.rho-box.bad  { background: #160000; border: 1px solid #7f1d1d; }
 .rho-box .rl  { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; margin-bottom: 5px; }
 .rho-box.good .rl { color: #4ade80; }
 .rho-box.warn .rl { color: #fbbf24; }
 .rho-box.bad  .rl { color: #f87171; }
-.rho-box p { font-size: 13px; line-height: 1.5; color: #bbb; }
-.export-btn {
-  width: 100%;
-  padding: 16px;
-  border-radius: 12px;
-  font-size: 15px;
-  font-weight: 700;
-  background: #22c55e;
-  color: #000;
-  border: none;
-  cursor: pointer;
-  margin-top: 12px;
-}
+.rho-box p { font-size: 13px; line-height: 1.5; color: #999; }
+.export-btn { width: 100%; padding: 15px; border-radius: 12px; font-size: 15px; font-weight: 700; background: #22c55e; color: #000; border: none; cursor: pointer; margin-top: 10px; }
 .export-btn:active { opacity: .85; }
 
-/* ── Spinner ──────────────────────────────────────────────── */
-.spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid #333; border-top-color: #888; border-radius: 50%; animation: spin .6s linear infinite; vertical-align: middle; margin-right: 6px; }
+/* Spinner */
+.spinner { display: inline-block; width: 13px; height: 13px; border: 2px solid #222; border-top-color: #666; border-radius: 50%; animation: spin .6s linear infinite; vertical-align: middle; margin-right: 5px; }
 @keyframes spin { to { transform: rotate(360deg); } }
 </style>
 </head>
 <body>
 
-<!-- ══════════════════════════════════════════════════════════
-     PANTALLA 1: SETUP
-════════════════════════════════════════════════════════════ -->
-<div id="screen-setup">
+<!-- ══ SCREEN SETUP ══════════════════════════════════════════════ -->
+<div id="screen-setup" class="screen active">
   <div class="setup-logo">🎰</div>
   <div class="setup-title">Casino ULS</div>
   <div class="setup-sub">Medición de tiempos · Investigación de Operaciones</div>
 
   <div class="setup-card">
-    <h2>Configura tu rol</h2>
 
-    <div class="field">
-      <label>Tu rol en esta sesión</label>
-      <select id="sel-rol">
-        <option value="">— Selecciona —</option>
-        <option value="llegada">Persona 1 · Llegadas</option>
-        <option value="inicio">Persona 2 · Inicio de atención</option>
-        <option value="fin">Persona 3 · Fin de atención</option>
-      </select>
+    <div style="display:flex;flex-direction:column;gap:8px;">
+      <div class="sec-head">Tu rol</div>
+      <div class="role-grid">
+        <button class="role-btn" data-role="coordinador" onclick="pickRole(this)">
+          <span class="rb-icon">🎛</span>Coordinador
+        </button>
+        <button class="role-btn" data-role="llegada" onclick="pickRole(this)">
+          <span class="rb-icon">⬇</span>Llegadas
+        </button>
+        <button class="role-btn" data-role="inicio" onclick="pickRole(this)">
+          <span class="rb-icon">▶</span>Inicio
+        </button>
+        <button class="role-btn" data-role="fin" onclick="pickRole(this)">
+          <span class="rb-icon">✓</span>Fin
+        </button>
+      </div>
     </div>
 
-    <div class="field">
-      <label>Jornada</label>
-      <select id="sel-sesion">
-        <option value="d1-mediodia" data-label="Día 1 · Mediodía">Día 1 · Mediodía</option>
-        <option value="d1-tarde"    data-label="Día 1 · Tarde"   >Día 1 · Tarde</option>
-        <option value="d2-mediodia" data-label="Día 2 · Mediodía">Día 2 · Mediodía</option>
-        <option value="d2-tarde"    data-label="Día 2 · Tarde"   >Día 2 · Tarde</option>
-      </select>
+    <!-- Coordinator: create new session -->
+    <div id="coord-form" style="display:none;flex-direction:column;gap:12px;">
+      <div class="field">
+        <label>Nombre de la jornada</label>
+        <input id="inp-label" type="text" placeholder="Día 1 · Mediodía" maxlength="50" autocomplete="off">
+      </div>
+      <div class="field">
+        <label>N° cajas activas</label>
+        <input id="inp-cajas" type="number" min="1" max="20" value="3">
+      </div>
     </div>
 
-    <div class="field">
-      <label>N° cajas activas</label>
-      <input id="inp-cajas" type="number" min="1" max="20" value="3">
+    <!-- Observer: pick session -->
+    <div id="obs-form" style="display:none;flex-direction:column;gap:8px;">
+      <div class="sec-head">
+        Sesión disponible
+        <button class="btn-refresh" onclick="recargarSesiones()" title="Refrescar">↺</button>
+      </div>
+      <div class="session-list-setup" id="session-list-setup">
+        <div class="empty-sessions">Selecciona tu rol primero</div>
+      </div>
     </div>
 
     <button class="btn-setup" id="btn-entrar" onclick="entrar()" disabled>Entrar →</button>
   </div>
 </div>
 
-<!-- ══════════════════════════════════════════════════════════
-     PANTALLA 2: MAIN
-════════════════════════════════════════════════════════════ -->
-<div id="screen-main">
+<!-- ══ SCREEN COORDINATOR ════════════════════════════════════════ -->
+<div id="screen-coordinator" class="screen">
+  <div class="topbar">
+    <div class="topbar-left">
+      <span class="topbar-role" style="color:#a78bfa">🎛 Coordinador</span>
+      <span class="topbar-session" id="coord-lbl-session">—</span>
+    </div>
+    <div class="topbar-right">
+      <span class="badge" id="coord-badge-status">—</span>
+      <span class="badge badge-online" id="coord-badge-conn">● Online</span>
+      <button class="btn-icon" onclick="volverSetup()" title="Salir">✕</button>
+    </div>
+  </div>
+  <div class="coord-body" id="coord-body"><!-- rendered dynamically --></div>
+</div>
 
-  <!-- Topbar -->
+<!-- ══ SCREEN OBSERVER MAIN ══════════════════════════════════════ -->
+<div id="screen-main" class="screen">
   <div class="topbar">
     <div class="topbar-left">
       <span class="topbar-role" id="lbl-rol">—</span>
       <span class="topbar-session" id="lbl-sesion">—</span>
     </div>
     <div class="topbar-right">
+      <span class="badge" id="badge-sesion-status" style="display:none">—</span>
       <span class="badge badge-online" id="badge-conn">● Online</span>
-      <span class="badge badge-queue"  id="badge-queue" style="display:none">↑ 0</span>
-      <button class="btn-icon" onclick="syncManual()" title="Sincronizar pendientes">↺</button>
-      <button class="btn-icon" onclick="volverSetup()" title="Cambiar rol">✕</button>
+      <span class="badge badge-queue" id="badge-queue" style="display:none">↑ 0</span>
+      <button class="btn-icon" onclick="syncManual()" title="Sincronizar">↺</button>
+      <button class="btn-icon" onclick="volverSetup()" title="Salir">✕</button>
     </div>
   </div>
 
-  <!-- Tabs -->
   <div class="tabs">
     <button class="tab active" onclick="showTab('registrar', this)">Registrar</button>
-    <button class="tab"        onclick="showTab('datos', this)">Datos</button>
-    <button class="tab"        onclick="showTab('resumen', this)">Resumen</button>
+    <button class="tab"        onclick="showTab('datos',     this)">Datos</button>
+    <button class="tab"        onclick="showTab('resumen',   this)">Resumen</button>
   </div>
 
-  <!-- ── Tab Registrar ── -->
+  <!-- Tab: Registrar -->
   <div id="tab-registrar">
     <div class="timer-wrap">
-      <div class="timer-label">Tiempo en jornada</div>
+      <div class="timer-label">Tiempo en sesión</div>
       <div class="timer-display" id="timer-display">00:00</div>
     </div>
+
+    <div class="state-msg waiting" id="msg-waiting">⏳ Esperando que el coordinador inicie la sesión…</div>
+    <div class="state-msg ended"   id="msg-ended">🏁 Sesión finalizada. Datos bloqueados.</div>
 
     <button class="btn-reg" id="btn-reg" onclick="registrarEvento(event)" disabled>
       <span class="r-icon"  id="reg-icon">⬇</span>
@@ -393,12 +538,12 @@ body {
     </button>
 
     <div class="last-reg">
-      <div class="lv" id="last-val" style="color:#333">—</div>
+      <div class="lv" id="last-val" style="color:#222">—</div>
       <div class="lt" id="last-time"></div>
     </div>
   </div>
 
-  <!-- ── Tab Datos ── -->
+  <!-- Tab: Datos -->
   <div id="tab-datos">
     <div class="data-section">
       <div class="data-header">
@@ -423,98 +568,331 @@ body {
     </div>
   </div>
 
-  <!-- ── Tab Resumen ── -->
+  <!-- Tab: Resumen -->
   <div id="tab-resumen">
-    <div id="resumen-content"><div class="empty-list" style="padding:40px">Cargando datos…</div></div>
+    <div id="resumen-content"><div class="empty-list" style="padding:40px">Sin datos suficientes aún.</div></div>
   </div>
-
 </div>
 
 <script type="module">
 import {
-  insertEvento, fetchSession, subscribeSession,
+  createSession, updateSession, fetchSessions,
+  insertEvento, fetchSession, subscribeTable,
   syncNow, qCount, serverNow
 } from './supabase.js';
 
 // ══════════════════════════════════════════════════════════════
-//  Estado de la app
+//  Estado global
 // ══════════════════════════════════════════════════════════════
-let rol, sessionId, sessionLabel, nCajas;
-let sessionEvents = [];   // cache local de todos los eventos de la sesión
-let jornada_start = null; // t_server del primer evento (referencia de tiempo)
-let timerIv = null;
-let unsubscribe = null;
-let online = navigator.onLine;
+let rol           = null;    // coordinador | llegada | inicio | fin
+let sessionId     = null;
+let sessionLabel  = null;
+let nCajas        = 3;
+let sessionStatus = null;    // waiting | active | ended
+let sessionEvents = [];
+let timerIv       = null;
+let coordTimerIv  = null;
+let unsubSession  = null;
+let unsubEventos  = null;
+let online        = navigator.onLine;
+let selectedSession = null;  // session object chosen in observer setup
 
-// ── Setup de validación ───────────────────────────────────────
-document.getElementById('sel-rol').addEventListener('change', validarSetup);
-document.getElementById('sel-sesion').addEventListener('change', validarSetup);
+// ══════════════════════════════════════════════════════════════
+//  Setup
+// ══════════════════════════════════════════════════════════════
+window.pickRole = function(btn) {
+  document.querySelectorAll('.role-btn').forEach(b =>
+    b.classList.remove('sel-coord','sel-blue','sel-yellow','sel-green')
+  );
+  rol = btn.dataset.role;
+  const map = { coordinador:'sel-coord', llegada:'sel-blue', inicio:'sel-yellow', fin:'sel-green' };
+  btn.classList.add(map[rol]);
+
+  document.getElementById('coord-form').style.display = rol === 'coordinador' ? 'flex' : 'none';
+  document.getElementById('obs-form').style.display   = rol !== 'coordinador' ? 'flex' : 'none';
+  selectedSession = null;
+
+  if (rol !== 'coordinador') recargarSesiones();
+  validarSetup();
+};
+
+window.recargarSesiones = async function() {
+  const list = document.getElementById('session-list-setup');
+  list.innerHTML = '<div class="empty-sessions">Cargando…</div>';
+  selectedSession = null;
+  validarSetup();
+  try {
+    const all = await fetchSessions();
+    const visible = all.filter(s => s.status !== 'ended');
+    if (!visible.length) {
+      list.innerHTML = '<div class="empty-sessions">Sin sesiones disponibles.<br>Pide al coordinador que cree una.</div>';
+      return;
+    }
+    const statusLabel = { waiting: 'Esperando', active: 'Activa' };
+    list.innerHTML = visible.map(s => {
+      const safeS = JSON.stringify(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;');
+      return `
+        <div class="session-item" data-id="${s.id}" onclick='selectSession(this, ${JSON.stringify(s)})'>
+          <div class="si-dot ${s.status}"></div>
+          <div class="si-info">
+            <div class="si-label">${s.label}</div>
+            <div class="si-meta">${s.n_cajas} caja${s.n_cajas>1?'s':''}</div>
+          </div>
+          <div class="si-status ${s.status}">${statusLabel[s.status] || s.status}</div>
+        </div>`;
+    }).join('');
+  } catch {
+    list.innerHTML = '<div class="empty-sessions">Error de conexión. Intenta de nuevo.</div>';
+  }
+};
+
+window.selectSession = function(el, s) {
+  document.querySelectorAll('.session-item').forEach(i => i.classList.remove('selected'));
+  el.classList.add('selected');
+  selectedSession = s;
+  validarSetup();
+};
+
 function validarSetup() {
-  document.getElementById('btn-entrar').disabled =
-    !document.getElementById('sel-rol').value;
+  const ok = rol === 'coordinador'
+    ? !!(document.getElementById('inp-label')?.value?.trim())
+    : !!(rol && selectedSession);
+  document.getElementById('btn-entrar').disabled = !ok;
 }
 
-// ── Entrar ───────────────────────────────────────────────────
-window.entrar = async function () {
-  rol          = document.getElementById('sel-rol').value;
-  const selSes = document.getElementById('sel-sesion');
-  sessionId    = selSes.value;
-  sessionLabel = selSes.options[selSes.selectedIndex].dataset.label;
-  nCajas       = parseInt(document.getElementById('inp-cajas').value) || 3;
+document.getElementById('inp-label').addEventListener('input', validarSetup);
 
-  // UI por rol
-  const roles = {
-    llegada: { icon:'⬇', label:'Llegó alguien', hint:'toca cada vez que llegue', color:'#60a5fa', text:'Persona 1 · Llegadas' },
-    inicio:  { icon:'▶', label:'Inicia atención', hint:'toca cuando empieza a ser atendido', color:'#fbbf24', text:'Persona 2 · Inicio atención' },
-    fin:     { icon:'✓', label:'Fin atención', hint:'toca cuando termina y pasa al siguiente', color:'#4ade80', text:'Persona 3 · Fin atención' },
-  };
-  const cfg = roles[rol];
-  document.getElementById('reg-icon').textContent  = cfg.icon;
-  document.getElementById('reg-label').textContent = cfg.label;
-  document.getElementById('reg-hint').textContent  = cfg.hint;
-  document.getElementById('last-val').style.color  = cfg.color;
-  document.getElementById('lbl-rol').textContent   = cfg.text;
+// ══════════════════════════════════════════════════════════════
+//  Entrar
+// ══════════════════════════════════════════════════════════════
+window.entrar = async function() {
+  document.getElementById('btn-entrar').disabled = true;
+  rol === 'coordinador' ? await entrarCoordinador() : await entrarObservador();
+};
+
+async function entrarCoordinador() {
+  const label = document.getElementById('inp-label').value.trim();
+  const cajas = parseInt(document.getElementById('inp-cajas').value) || 3;
+  sessionId    = 'ses_' + Date.now();
+  sessionLabel = label;
+  nCajas       = cajas;
+
+  try {
+    await createSession({ id: sessionId, label, n_cajas: cajas, status: 'waiting' });
+    sessionStatus = 'waiting';
+  } catch {
+    alert('Error al crear sesión. Verifica la conexión.');
+    document.getElementById('btn-entrar').disabled = false;
+    return;
+  }
+
+  document.getElementById('coord-lbl-session').textContent = label;
+  showScreen('coordinator');
+  renderCoordBadge();
+  renderCoordBody();
+
+  // Subscribe to this session's status changes
+  unsubSession = subscribeTable('sessions', `id=eq.${sessionId}`, (ev, row) => {
+    if (row.status !== sessionStatus) {
+      sessionStatus = row.status;
+      renderCoordBadge();
+      renderCoordBody();
+    }
+  });
+
+  // Subscribe to eventos for live counts
+  unsubEventos = subscribeTable('eventos', `session_id=eq.${sessionId}`, (ev, row) => {
+    if (ev === 'INSERT' && !sessionEvents.find(e => e.t_server === row.t_server && e.tipo === row.tipo)) {
+      sessionEvents.push(row);
+      updateCoordStats();
+    }
+  });
+
+  window.addEventListener('online',  onOnline);
+  window.addEventListener('offline', onOffline);
+  updateCoordConnBadge();
+}
+
+async function entrarObservador() {
+  const s      = selectedSession;
+  sessionId    = s.id;
+  sessionLabel = s.label;
+  nCajas       = s.n_cajas;
+  sessionStatus = s.status;
+
+  const cfg = {
+    llegada: { icon:'⬇', label:'Llegó alguien',   hint:'toca cada vez que llegue',            color:'#60a5fa', text:'Llegadas'       },
+    inicio:  { icon:'▶', label:'Inicia atención',  hint:'toca cuando empieza a ser atendido',  color:'#fbbf24', text:'Inicio atención' },
+    fin:     { icon:'✓', label:'Fin atención',     hint:'toca cuando termina y sale',           color:'#4ade80', text:'Fin atención'    },
+  }[rol];
+
+  document.getElementById('reg-icon').textContent   = cfg.icon;
+  document.getElementById('reg-label').textContent  = cfg.label;
+  document.getElementById('reg-hint').textContent   = cfg.hint;
+  document.getElementById('last-val').style.color   = cfg.color;
+  document.getElementById('lbl-rol').textContent    = cfg.text;
   document.getElementById('lbl-sesion').textContent = sessionLabel;
+  document.getElementById('screen-main').className  = `screen role-${rol}`;
 
-  document.getElementById('screen-setup').style.display = 'none';
-  const main = document.getElementById('screen-main');
-  main.style.display = 'flex';
-  main.className = `role-${rol}`;
-
-  // Cargar eventos existentes
+  showScreen('main');
+  applySessionState(sessionStatus);
   await cargarSesion();
-  // Suscribir realtime
-  unsubscribe = subscribeSession(sessionId, onRealtimeEvent);
-  // Habilitar botón
-  document.getElementById('btn-reg').disabled = false;
-  // Arrancar cronómetro
-  startTimer();
-  // Monitor de conexión
+
+  // Subscribe to session status changes → lock/unlock button
+  unsubSession = subscribeTable('sessions', `id=eq.${sessionId}`, (ev, row) => {
+    if (row.status !== sessionStatus) {
+      sessionStatus = row.status;
+      applySessionState(sessionStatus);
+    }
+  });
+
+  // Subscribe to new eventos from other devices
+  unsubEventos = subscribeTable('eventos', `session_id=eq.${sessionId}`, (ev, row) => {
+    if (ev === 'INSERT' && !sessionEvents.find(e => e.t_server === row.t_server && e.tipo === row.tipo)) {
+      sessionEvents.push(row);
+      renderDatos();
+    }
+  });
+
   window.addEventListener('online',  onOnline);
   window.addEventListener('offline', onOffline);
   updateConnBadge();
+}
+
+// ══════════════════════════════════════════════════════════════
+//  Session state → observer UI
+// ══════════════════════════════════════════════════════════════
+function applySessionState(status) {
+  const btn   = document.getElementById('btn-reg');
+  const mWait = document.getElementById('msg-waiting');
+  const mEnd  = document.getElementById('msg-ended');
+  const badge = document.getElementById('badge-sesion-status');
+
+  mWait.classList.remove('show');
+  mEnd.classList.remove('show');
+  btn.disabled = true;
+  badge.style.display = 'inline-block';
+
+  if (status === 'active') {
+    btn.disabled = false;
+    badge.className   = 'badge badge-active';
+    badge.textContent = '● Activa';
+    startTimer();
+  } else if (status === 'waiting') {
+    mWait.classList.add('show');
+    badge.className   = 'badge badge-waiting';
+    badge.textContent = '⏳ Esperando';
+  } else {
+    mEnd.classList.add('show');
+    badge.className   = 'badge badge-ended';
+    badge.textContent = '■ Finalizada';
+    stopTimer();
+  }
+}
+
+// ══════════════════════════════════════════════════════════════
+//  Coordinator render
+// ══════════════════════════════════════════════════════════════
+function renderCoordBadge() {
+  const badge = document.getElementById('coord-badge-status');
+  const map = {
+    waiting: ['badge badge-waiting', '⏳ Esperando'],
+    active:  ['badge badge-active',  '● Activa'],
+    ended:   ['badge badge-ended',   '■ Finalizada'],
+  };
+  const [cls, text] = map[sessionStatus] || ['badge', '—'];
+  badge.className   = cls;
+  badge.textContent = text;
+}
+
+function renderCoordBody() {
+  const body = document.getElementById('coord-body');
+  clearInterval(coordTimerIv);
+
+  if (sessionStatus === 'waiting') {
+    body.innerHTML = `
+      <div class="coord-state-label">Sesión creada · Esperando observadores</div>
+      <button class="btn-action start" onclick="iniciarSesion()">
+        <span class="a-icon">▶</span>
+        <span class="a-label">INICIAR</span>
+        <span class="a-hint">abre el registro</span>
+      </button>`;
+
+  } else if (sessionStatus === 'active') {
+    body.innerHTML = `
+      <div class="coord-timer" id="coord-timer">00:00</div>
+      <div class="live-stats">
+        <div class="stat-box"><div class="sb-n color-llegada" id="cs-llegada">0</div><div class="sb-l">Llegadas</div></div>
+        <div class="stat-box"><div class="sb-n color-inicio"  id="cs-inicio" >0</div><div class="sb-l">Inicio</div></div>
+        <div class="stat-box"><div class="sb-n color-fin"     id="cs-fin"    >0</div><div class="sb-l">Fin</div></div>
+      </div>
+      <button class="btn-action stop" onclick="terminarSesion()">
+        <span class="a-icon">■</span>
+        <span class="a-label">TERMINAR</span>
+        <span class="a-hint">bloquea el registro</span>
+      </button>`;
+    updateCoordStats();
+    startCoordTimer();
+
+  } else {
+    body.innerHTML = `
+      <div class="ended-wrap">
+        <div class="ended-icon">🏁</div>
+        <div class="ended-title">Sesión finalizada</div>
+        <div class="ended-sub">${sessionLabel} · ${sessionEvents.length} registros totales</div>
+        <button class="btn-secondary green" onclick="exportCSVCoord()">⬇ Exportar CSV</button>
+        <button class="btn-secondary"       onclick="volverSetup()">Nueva sesión</button>
+      </div>`;
+  }
+}
+
+function updateCoordStats() {
+  ['llegada','inicio','fin'].forEach(t => {
+    const el = document.getElementById('cs-' + t);
+    if (el) el.textContent = sessionEvents.filter(e => e.tipo === t).length;
+  });
+}
+
+function startCoordTimer() {
+  const ref = Date.now();
+  coordTimerIv = setInterval(() => {
+    const el = document.getElementById('coord-timer');
+    if (!el) { clearInterval(coordTimerIv); return; }
+    const s  = Math.floor((Date.now() - ref) / 1000);
+    const mm = String(Math.floor(s / 60)).padStart(2, '0');
+    const ss = String(s % 60).padStart(2, '0');
+    el.textContent = `${mm}:${ss}`;
+  }, 500);
+}
+
+// ══════════════════════════════════════════════════════════════
+//  Coordinator actions
+// ══════════════════════════════════════════════════════════════
+window.iniciarSesion = async function() {
+  const started_at = await serverNow();
+  await updateSession(sessionId, { status: 'active', started_at });
+  sessionStatus = 'active';
+  renderCoordBadge();
+  renderCoordBody();
 };
 
-// ── Volver a setup ────────────────────────────────────────────
-window.volverSetup = function () {
-  if (unsubscribe) { unsubscribe(); unsubscribe = null; }
-  clearInterval(timerIv);
-  window.removeEventListener('online', onOnline);
-  window.removeEventListener('offline', onOffline);
-  document.getElementById('screen-main').style.display = 'none';
-  document.getElementById('screen-setup').style.display = 'flex';
-  sessionEvents = [];
-  jornada_start = null;
+window.terminarSesion = async function() {
+  const ended_at = await serverNow();
+  await updateSession(sessionId, { status: 'ended', ended_at });
+  clearInterval(coordTimerIv);
+  sessionStatus = 'ended';
+  renderCoordBadge();
+  renderCoordBody();
 };
 
 // ══════════════════════════════════════════════════════════════
-//  Registrar evento
+//  Observer: register event
 // ══════════════════════════════════════════════════════════════
-window.registrarEvento = async function (e) {
+window.registrarEvento = async function(e) {
+  if (sessionStatus !== 'active') return;
   const btn = document.getElementById('btn-reg');
   btn.disabled = true;
 
-  // Ripple
   const ripple = document.createElement('span');
   ripple.className = 'ripple';
   ripple.style.left = (e.offsetX - 40) + 'px';
@@ -522,27 +900,15 @@ window.registrarEvento = async function (e) {
   btn.appendChild(ripple);
   setTimeout(() => ripple.remove(), 600);
 
-  // Timestamp del servidor
   const t_server = await serverNow();
-  const hora = new Date(t_server).toLocaleTimeString('es-CL', { hour12: false });
-
-  const row = {
-    session_id:    sessionId,
-    session_label: sessionLabel,
-    tipo:          rol,
-    t_server,
-    hora,
-  };
+  const hora     = new Date(t_server).toLocaleTimeString('es-CL', { hour12: false });
+  const row      = { session_id: sessionId, session_label: sessionLabel, tipo: rol, t_server, hora };
 
   const { ok, offline } = await insertEvento(row);
 
   if (ok) {
-    // Agregar al cache local si offline (realtime lo agrega si online)
-    if (offline) {
-      sessionEvents.push({ ...row, _offline: true });
-      renderDatos();
-    }
-    // Mostrar último valor
+    if (offline) { sessionEvents.push({ ...row, _offline: true }); renderDatos(); }
+
     const prev = sessionEvents.filter(ev => ev.tipo === rol && !offline).at(-1);
     if (prev) {
       const diff = ((t_server - prev.t_server) / 1000).toFixed(1);
@@ -556,102 +922,101 @@ window.registrarEvento = async function (e) {
   }
 
   updateQueueBadge();
-  setTimeout(() => { btn.disabled = false; }, 300); // anti-doble tap
+  setTimeout(() => { if (sessionStatus === 'active') btn.disabled = false; }, 300);
 };
 
-// ── Realtime: nuevo evento de otro celular ────────────────────
-function onRealtimeEvent(row) {
-  // Evitar duplicados
-  if (!sessionEvents.find(e => e.t_server === row.t_server && e.tipo === row.tipo)) {
-    sessionEvents.push(row);
-    renderDatos();
-  }
-}
-
 // ══════════════════════════════════════════════════════════════
-//  Cargar sesión desde Supabase
+//  Load session events
 // ══════════════════════════════════════════════════════════════
 async function cargarSesion() {
   try {
-    const rows = await fetchSession(sessionId);
-    sessionEvents = rows || [];
-    if (sessionEvents.length) {
-      jornada_start = sessionEvents[0].t_server;
-    }
+    sessionEvents = (await fetchSession(sessionId)) || [];
     renderDatos();
-  } catch {
-    // offline al cargar: arranca con cache vacío
-  }
+  } catch { /* offline, start empty */ }
 }
 
 // ══════════════════════════════════════════════════════════════
-//  Cronómetro
+//  Timer
 // ══════════════════════════════════════════════════════════════
 function startTimer() {
+  stopTimer();
+  const ref     = Date.now();
   const display = document.getElementById('timer-display');
-  const refTime = Date.now();
-  clearInterval(timerIv);
   timerIv = setInterval(() => {
-    const s = Math.floor((Date.now() - refTime) / 1000);
+    const s  = Math.floor((Date.now() - ref) / 1000);
     const mm = String(Math.floor(s / 60)).padStart(2, '0');
     const ss = String(s % 60).padStart(2, '0');
     display.textContent = `${mm}:${ss}`;
     display.classList.toggle('running', s > 0);
   }, 500);
 }
+function stopTimer() { clearInterval(timerIv); }
 
 // ══════════════════════════════════════════════════════════════
-//  Tabs
+//  Navigation
 // ══════════════════════════════════════════════════════════════
-window.showTab = function(tab, btn) {
-  ['registrar','datos','resumen'].forEach(t => {
-    document.getElementById('tab-' + t).style.display = 'none';
-  });
-  document.querySelectorAll('.tab').forEach(b => b.classList.remove('active'));
-  document.getElementById('tab-' + tab).style.display = 'flex';
-  btn.classList.add('active');
-  if (tab === 'datos')    renderDatos();
-  if (tab === 'resumen')  renderResumen();
+function showScreen(name) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  const id = { setup:'screen-setup', coordinator:'screen-coordinator', main:'screen-main' }[name];
+  document.getElementById(id).classList.add('active');
+}
+
+window.volverSetup = function() {
+  if (unsubSession) { unsubSession(); unsubSession = null; }
+  if (unsubEventos) { unsubEventos(); unsubEventos = null; }
+  stopTimer();
+  clearInterval(coordTimerIv);
+  window.removeEventListener('online', onOnline);
+  window.removeEventListener('offline', onOffline);
+  sessionEvents   = [];
+  rol             = null;
+  selectedSession = null;
+  sessionStatus   = null;
+  document.querySelectorAll('.role-btn').forEach(b =>
+    b.classList.remove('sel-coord','sel-blue','sel-yellow','sel-green')
+  );
+  document.getElementById('coord-form').style.display = 'none';
+  document.getElementById('obs-form').style.display   = 'none';
+  document.getElementById('inp-label').value = '';
+  document.getElementById('btn-entrar').disabled = true;
+  showScreen('setup');
 };
-// Mostrar tab inicial
-document.getElementById('tab-registrar').style.display = 'flex';
+
+window.showTab = function(tab, btn) {
+  document.querySelectorAll('.tab').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('tab-registrar').style.display = tab === 'registrar' ? 'flex' : 'none';
+  document.getElementById('tab-datos').style.display     = tab === 'datos'     ? 'block' : 'none';
+  document.getElementById('tab-resumen').style.display   = tab === 'resumen'   ? 'block' : 'none';
+  if (tab === 'datos')   renderDatos();
+  if (tab === 'resumen') renderResumen();
+};
 
 // ══════════════════════════════════════════════════════════════
-//  Render: Tab Datos
+//  Render: Datos
 // ══════════════════════════════════════════════════════════════
 function renderDatos() {
   ['llegada','inicio','fin'].forEach(tipo => {
-    const evs = sessionEvents
-      .filter(e => e.tipo === tipo)
-      .sort((a,b) => a.t_server - b.t_server);
-
+    const evs = sessionEvents.filter(e => e.tipo === tipo).sort((a,b) => a.t_server - b.t_server);
     document.getElementById('cnt-' + tipo).textContent = evs.length + ' reg';
-
     const list = document.getElementById('list-' + tipo);
-    if (!evs.length) {
-      list.innerHTML = '<div class="empty-list">Sin datos</div>';
-      return;
-    }
+    if (!evs.length) { list.innerHTML = '<div class="empty-list">Sin datos</div>'; return; }
     list.innerHTML = [...evs].reverse().map((ev, ri) => {
-      const i = evs.length - 1 - ri;
+      const i    = evs.length - 1 - ri;
       const prev = evs[i - 1];
-      const intv = prev
-        ? ((ev.t_server - prev.t_server) / 1000).toFixed(2) + 's'
-        : 'inicio';
-      const srcClass = ev._offline ? 'src-offline' : 'src-online';
-      const srcLabel = ev._offline ? 'local' : 'sync';
+      const intv = prev ? ((ev.t_server - prev.t_server) / 1000).toFixed(2) + 's' : 'inicio';
       return `<div class="event-item">
-        <span class="ei-n">${i + 1}</span>
+        <span class="ei-n">${i+1}</span>
         <span class="ei-hora color-${tipo}">${ev.hora}</span>
         <span class="ei-intv">${intv}</span>
-        <span class="ei-src ${srcClass}">${srcLabel}</span>
+        <span class="ei-src ${ev._offline ? 'src-offline' : 'src-online'}">${ev._offline ? 'local' : 'sync'}</span>
       </div>`;
     }).join('');
   });
 }
 
 // ══════════════════════════════════════════════════════════════
-//  Render: Tab Resumen
+//  Render: Resumen
 // ══════════════════════════════════════════════════════════════
 function avg(a) { return a.length ? a.reduce((x,y) => x+y, 0) / a.length : 0; }
 function std(a) {
@@ -661,64 +1026,54 @@ function std(a) {
 }
 function intervals(arr) {
   const r = [];
-  for (let i = 1; i < arr.length; i++)
-    r.push((arr[i].t_server - arr[i-1].t_server) / 1000);
+  for (let i = 1; i < arr.length; i++) r.push((arr[i].t_server - arr[i-1].t_server) / 1000);
   return r;
 }
 
 function renderResumen() {
   const el = document.getElementById('resumen-content');
+  const llegadas = sessionEvents.filter(e => e.tipo==='llegada').sort((a,b) => a.t_server-b.t_server);
+  const inicios  = sessionEvents.filter(e => e.tipo==='inicio' ).sort((a,b) => a.t_server-b.t_server);
+  const fines    = sessionEvents.filter(e => e.tipo==='fin'    ).sort((a,b) => a.t_server-b.t_server);
+  const intLL    = intervals(llegadas);
+  const intAT    = inicios.map((ini,i) => fines[i] ? (fines[i].t_server - ini.t_server) / 1000 : null).filter(v => v !== null && v > 0);
 
-  const llegadas = sessionEvents.filter(e => e.tipo === 'llegada').sort((a,b) => a.t_server - b.t_server);
-  const inicios  = sessionEvents.filter(e => e.tipo === 'inicio' ).sort((a,b) => a.t_server - b.t_server);
-  const fines    = sessionEvents.filter(e => e.tipo === 'fin'    ).sort((a,b) => a.t_server - b.t_server);
-
-  const intLlegadas  = intervals(llegadas);
-  const intAtenciones = inicios.map((ini, i) => fines[i]
-    ? (fines[i].t_server - ini.t_server) / 1000
-    : null).filter(v => v !== null && v > 0);
-
-  if (!intLlegadas.length && !intAtenciones.length) {
+  if (!intLL.length && !intAT.length) {
     el.innerHTML = '<div class="empty-list" style="padding:40px">Sin datos suficientes aún.</div>';
     return;
   }
 
-  const c = nCajas;
-  const lambda = intLlegadas.length  ? 1 / avg(intLlegadas)   : null;
-  const mu     = intAtenciones.length ? 1 / avg(intAtenciones) : null;
-  const rho    = (lambda && mu) ? lambda / (c * mu) : null;
-
+  const lambda = intLL.length ? 1 / avg(intLL) : null;
+  const mu     = intAT.length ? 1 / avg(intAT) : null;
+  const rho    = (lambda && mu) ? lambda / (nCajas * mu) : null;
   const rhoClass = rho === null ? '' : rho >= 1 ? 'bad' : rho >= 0.8 ? 'warn' : 'good';
   const rhoText  = rho === null ? '' : rho >= 1
-    ? `ρ = ${rho.toFixed(3)} ≥ 1 → cola infinita. El sistema colapsa con ${c} caja${c>1?'s':''}.`
+    ? `ρ = ${rho.toFixed(3)} ≥ 1 → cola infinita. Sistema colapsa con ${nCajas} caja${nCajas>1?'s':''}.`
     : rho >= 0.8
-    ? `ρ = ${rho.toFixed(3)} → carga alta. Probables colas en peak con ${c} caja${c>1?'s':''}.`
-    : `ρ = ${rho.toFixed(3)} → sistema estable con ${c} caja${c>1?'s':''}.`;
+    ? `ρ = ${rho.toFixed(3)} → carga alta. Probables colas en peak con ${nCajas} caja${nCajas>1?'s':''}.`
+    : `ρ = ${rho.toFixed(3)} → sistema estable con ${nCajas} caja${nCajas>1?'s':''}.`;
 
   el.innerHTML = `
-    <div class="sec-label">Llegadas — ${sessionLabel}</div>
+    <div class="res-sec-label">Llegadas — ${sessionLabel}</div>
     <div class="sgrid">
       <div class="sbox"><div class="sl">n registros</div><div class="sv">${llegadas.length}</div></div>
-      <div class="sbox"><div class="sl">Prom. entre llegadas</div><div class="sv">${intLlegadas.length ? avg(intLlegadas).toFixed(2) : '—'}<span class="su"> s</span></div></div>
-      <div class="sbox"><div class="sl">σ llegadas</div><div class="sv">${intLlegadas.length ? std(intLlegadas).toFixed(2) : '—'}</div></div>
-      <div class="sbox"><div class="sl">λ (person/s)</div><div class="sv" style="font-size:16px">${lambda ? lambda.toFixed(5) : '—'}</div></div>
+      <div class="sbox"><div class="sl">Prom. entre llegadas</div><div class="sv">${intLL.length ? avg(intLL).toFixed(2) : '—'}<span class="su"> s</span></div></div>
+      <div class="sbox"><div class="sl">σ llegadas</div><div class="sv">${intLL.length ? std(intLL).toFixed(2) : '—'}</div></div>
+      <div class="sbox"><div class="sl">λ (pers/s)</div><div class="sv" style="font-size:16px">${lambda ? lambda.toFixed(5) : '—'}</div></div>
     </div>
-
-    <div class="sec-label">Atención (inicio→fin)</div>
+    <div class="res-sec-label">Atención (inicio → fin)</div>
     <div class="sgrid">
-      <div class="sbox"><div class="sl">n pares medidos</div><div class="sv">${intAtenciones.length}</div></div>
-      <div class="sbox"><div class="sl">Prom. atención</div><div class="sv">${intAtenciones.length ? avg(intAtenciones).toFixed(2) : '—'}<span class="su"> s</span></div></div>
-      <div class="sbox"><div class="sl">σ atención</div><div class="sv">${intAtenciones.length ? std(intAtenciones).toFixed(2) : '—'}</div></div>
-      <div class="sbox"><div class="sl">μ (person/s)</div><div class="sv" style="font-size:16px">${mu ? mu.toFixed(5) : '—'}</div></div>
+      <div class="sbox"><div class="sl">n pares medidos</div><div class="sv">${intAT.length}</div></div>
+      <div class="sbox"><div class="sl">Prom. atención</div><div class="sv">${intAT.length ? avg(intAT).toFixed(2) : '—'}<span class="su"> s</span></div></div>
+      <div class="sbox"><div class="sl">σ atención</div><div class="sv">${intAT.length ? std(intAT).toFixed(2) : '—'}</div></div>
+      <div class="sbox"><div class="sl">μ (pers/s)</div><div class="sv" style="font-size:16px">${mu ? mu.toFixed(5) : '—'}</div></div>
     </div>
-
     ${rho !== null ? `
-    <div class="sec-label">Factor de utilización · M/M/${c}</div>
+    <div class="res-sec-label">Factor de utilización · M/M/${nCajas}</div>
     <div class="rho-box ${rhoClass}">
       <div class="rl">${rho>=1?'⚠ Sistema inestable':rho>=0.8?'⚡ Carga alta':'✓ Sistema estable'}</div>
       <p>${rhoText}</p>
     </div>` : ''}
-
     <button class="export-btn" onclick="exportCSV()">⬇ Exportar CSV para Minitab</button>
   `;
 }
@@ -726,62 +1081,64 @@ function renderResumen() {
 // ══════════════════════════════════════════════════════════════
 //  Export CSV
 // ══════════════════════════════════════════════════════════════
-window.exportCSV = function () {
-  const llegadas  = sessionEvents.filter(e=>e.tipo==='llegada').sort((a,b)=>a.t_server-b.t_server);
-  const inicios   = sessionEvents.filter(e=>e.tipo==='inicio' ).sort((a,b)=>a.t_server-b.t_server);
-  const fines     = sessionEvents.filter(e=>e.tipo==='fin'    ).sort((a,b)=>a.t_server-b.t_server);
-  const intLL     = intervals(llegadas);
-  const intAT     = inicios.map((ini,i)=>fines[i]?((fines[i].t_server-ini.t_server)/1000):null).filter(v=>v!==null&&v>0);
-
-  let csv = `# Casino ULS — ${sessionLabel}\r\n`;
-  csv    += `# Exportado: ${new Date().toLocaleString('es-CL')}\r\n`;
-  csv    += `# Cajas: ${nCajas}\r\n\r\n`;
-
+function buildCSV() {
+  const llegadas = sessionEvents.filter(e=>e.tipo==='llegada').sort((a,b)=>a.t_server-b.t_server);
+  const inicios  = sessionEvents.filter(e=>e.tipo==='inicio' ).sort((a,b)=>a.t_server-b.t_server);
+  const fines    = sessionEvents.filter(e=>e.tipo==='fin'    ).sort((a,b)=>a.t_server-b.t_server);
+  const intLL    = intervals(llegadas);
+  const intAT    = inicios.map((ini,i)=>fines[i]?((fines[i].t_server-ini.t_server)/1000):null).filter(v=>v!==null&&v>0);
+  let csv = `# Casino ULS — ${sessionLabel}\r\n# Exportado: ${new Date().toLocaleString('es-CL')}\r\n# Cajas: ${nCajas}\r\n\r\n`;
   csv += `tipo,n,hora,t_server_ms\r\n`;
-  [...llegadas,...inicios,...fines]
-    .sort((a,b)=>a.t_server-b.t_server)
-    .forEach((e,i)=>{ csv += `${e.tipo},${i+1},${e.hora},${e.t_server}\r\n`; });
+  [...llegadas,...inicios,...fines].sort((a,b)=>a.t_server-b.t_server).forEach((e,i) => {
+    csv += `${e.tipo},${i+1},${e.hora},${e.t_server}\r\n`;
+  });
+  if (intLL.length) { csv += `\r\n# Intervalos entre llegadas\r\nEntre_llegadas_s\r\n` + intLL.map(v=>v.toFixed(2)).join('\r\n') + '\r\n'; }
+  if (intAT.length) { csv += `\r\n# Tiempos de atención\r\nTiempo_atencion_s\r\n` + intAT.map(v=>v.toFixed(2)).join('\r\n') + '\r\n'; }
+  return csv;
+}
 
-  if (intLL.length) {
-    csv += `\r\n# MINITAB — intervalos entre llegadas\r\nEntre_llegadas_s\r\n`;
-    csv += intLL.map(v=>v.toFixed(2)).join('\r\n') + '\r\n';
-  }
-  if (intAT.length) {
-    csv += `\r\n# MINITAB — tiempos de atención\r\nTiempo_atencion_s\r\n`;
-    csv += intAT.map(v=>v.toFixed(2)).join('\r\n') + '\r\n';
-  }
-
+function downloadCSV(csv) {
   const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
   const url  = URL.createObjectURL(blob);
   const a    = document.createElement('a');
   a.href = url; a.download = `casino_uls_${sessionId}.csv`; a.click();
   URL.revokeObjectURL(url);
-};
+}
+
+window.exportCSV      = () => downloadCSV(buildCSV());
+window.exportCSVCoord = () => downloadCSV(buildCSV());
 
 // ══════════════════════════════════════════════════════════════
-//  Conectividad y cola
+//  Connectivity
 // ══════════════════════════════════════════════════════════════
-function onOnline()  { online = true;  updateConnBadge(); syncManual(); }
-function onOffline() { online = false; updateConnBadge(); }
+function onOnline()  { online = true;  updateConnBadge(); updateCoordConnBadge(); syncManual(); }
+function onOffline() { online = false; updateConnBadge(); updateCoordConnBadge(); }
 
 function updateConnBadge() {
   const b = document.getElementById('badge-conn');
-  b.className = online ? 'badge badge-online' : 'badge badge-offline';
+  if (!b) return;
+  b.className   = online ? 'badge badge-online' : 'badge badge-offline';
   b.textContent = online ? '● Online' : '○ Offline';
   updateQueueBadge();
 }
-
+function updateCoordConnBadge() {
+  const b = document.getElementById('coord-badge-conn');
+  if (!b) return;
+  b.className   = online ? 'badge badge-online' : 'badge badge-offline';
+  b.textContent = online ? '● Online' : '○ Offline';
+}
 function updateQueueBadge() {
   const n = qCount();
   const b = document.getElementById('badge-queue');
+  if (!b) return;
   b.style.display = n > 0 ? 'inline-block' : 'none';
   b.textContent   = `↑ ${n}`;
 }
 
-window.syncManual = async function () {
+window.syncManual = async function() {
   const b = document.getElementById('badge-conn');
-  b.innerHTML = '<span class="spinner"></span>Sync…';
-  const { flushed, remaining } = await syncNow();
+  if (b) b.innerHTML = '<span class="spinner"></span>Sync…';
+  const { flushed } = await syncNow();
   if (flushed > 0) await cargarSesion();
   updateConnBadge();
 };
@@ -793,6 +1150,5 @@ if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('/sw.js').catch(() => {});
 }
 </script>
-
 </body>
 </html>

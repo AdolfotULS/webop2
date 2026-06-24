@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "casino-uls",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["serve", "casino-uls", "-p", "3000", "--no-clipboard"],
+      "port": 3000
+    }
+  ]
+}

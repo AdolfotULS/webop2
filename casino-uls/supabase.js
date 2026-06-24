@@ -1,23 +1,20 @@
-// ================================================================
-//  supabase.js
-//  Cliente Supabase: insert, realtime subscribe, cola offline
-//  Las credenciales se inyectan desde index.html (window.SB_*)
-// ================================================================
+// supabase.js — Casino ULS
+// Credenciales inyectadas desde index.html (window.SB_*)
 
-const URL  = () => window.SB_URL;
-const KEY  = () => window.SB_KEY;
-const TABLE = 'eventos';
+const SB_URL  = () => window.SB_URL;
+const SB_KEY  = () => window.SB_KEY;
+const EVENTOS = 'eventos';
+const SESSIONS = 'sessions';
 const QUEUE_KEY = 'casino_queue_v1';
 
-// ── Helpers HTTP ─────────────────────────────────────────────────────────────
-
+// ── HTTP helper ───────────────────────────────────────────────────
 async function req(method, path, body) {
-  const r = await fetch(`${URL()}/rest/v1/${path}`, {
+  const r = await fetch(`${SB_URL()}/rest/v1/${path}`, {
     method,
     headers: {
       'Content-Type': 'application/json',
-      'apikey': KEY(),
-      'Authorization': `Bearer ${KEY()}`,
+      'apikey': SB_KEY(),
+      'Authorization': `Bearer ${SB_KEY()}`,
       'Prefer': 'return=representation',
     },
     body: body ? JSON.stringify(body) : undefined,
@@ -26,14 +23,12 @@ async function req(method, path, body) {
   return r.json();
 }
 
-// ── Timestamp del servidor via Supabase RPC ───────────────────────────────────
-// Para evitar desync entre teléfonos usamos el tiempo del servidor.
-// Si falla (offline) usamos Date.now() local como fallback.
+// ── Server timestamp ──────────────────────────────────────────────
 export async function serverNow() {
   try {
-    const r = await fetch(`${URL()}/rest/v1/rpc/now_ms`, {
+    const r = await fetch(`${SB_URL()}/rest/v1/rpc/now_ms`, {
       method: 'POST',
-      headers: { 'apikey': KEY(), 'Authorization': `Bearer ${KEY()}`, 'Content-Type': 'application/json' },
+      headers: { 'apikey': SB_KEY(), 'Authorization': `Bearer ${SB_KEY()}`, 'Content-Type': 'application/json' },
       body: '{}',
     });
     if (r.ok) {
@@ -41,11 +36,32 @@ export async function serverNow() {
       return typeof d === 'number' ? d : Date.now();
     }
   } catch {}
-  return Date.now();   // fallback offline
+  return Date.now();
 }
 
-// ── Cola offline ──────────────────────────────────────────────────────────────
+// ── Sessions ──────────────────────────────────────────────────────
+export async function createSession(session) {
+  const rows = await req('POST', SESSIONS, [session]);
+  return rows[0];
+}
 
+export async function updateSession(id, patch) {
+  await fetch(`${SB_URL()}/rest/v1/${SESSIONS}?id=eq.${encodeURIComponent(id)}`, {
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json',
+      'apikey': SB_KEY(),
+      'Authorization': `Bearer ${SB_KEY()}`,
+    },
+    body: JSON.stringify(patch),
+  });
+}
+
+export async function fetchSessions() {
+  return req('GET', `${SESSIONS}?order=created_at.desc&limit=20&select=*`);
+}
+
+// ── Offline queue ─────────────────────────────────────────────────
 function qLoad() {
   try { return JSON.parse(localStorage.getItem(QUEUE_KEY) || '[]'); } catch { return []; }
 }
@@ -59,23 +75,20 @@ async function qFlush() {
   if (!q.length) return 0;
   const failed = [];
   for (const row of q) {
-    try { await req('POST', TABLE, [row]); }
+    try { await req('POST', EVENTOS, [row]); }
     catch { failed.push(row); }
   }
   qSave(failed);
   return q.length - failed.length;
 }
 
-// ── Insert con fallback offline ───────────────────────────────────────────────
-
+// ── Eventos ───────────────────────────────────────────────────────
 export async function insertEvento(row) {
-  // Intenta vaciar cola primero, luego insertar
   try {
     await qFlush();
-    const [inserted] = await req('POST', TABLE, [row]);
+    const [inserted] = await req('POST', EVENTOS, [row]);
     return { ok: true, offline: false, row: inserted };
   } catch {
-    qLoad(); // vacía posible corrupción
     const q = qLoad();
     q.push(row);
     qSave(q);
@@ -83,29 +96,33 @@ export async function insertEvento(row) {
   }
 }
 
-// ── Cargar sesión completa ────────────────────────────────────────────────────
-
 export async function fetchSession(session_id) {
-  return req('GET', `${TABLE}?session_id=eq.${encodeURIComponent(session_id)}&order=t_server.asc&select=*`);
+  return req('GET', `${EVENTOS}?session_id=eq.${encodeURIComponent(session_id)}&order=t_server.asc&select=*`);
 }
 
-// ── Realtime subscription ─────────────────────────────────────────────────────
-// Usa el websocket nativo de Supabase (sin SDK, implementación mínima)
+export async function syncNow() {
+  const flushed = await qFlush();
+  return { flushed, remaining: qCount() };
+}
 
-export function subscribeSession(session_id, onInsert) {
-  const wsUrl = URL().replace('https://', 'wss://').replace('http://', 'ws://');
-  const ws = new WebSocket(`${wsUrl}/realtime/v1/websocket?apikey=${KEY()}&vsn=1.0.0`);
+// ── Realtime subscribe (generic) ─────────────────────────────────
+// filter: e.g. "session_id=eq.abc" or null for whole table
+// onEvent(eventType, record) — eventType: 'INSERT' | 'UPDATE' | 'DELETE'
+export function subscribeTable(table, filter, onEvent) {
+  const wsUrl = SB_URL().replace('https://', 'wss://').replace('http://', 'ws://');
+  const topic = filter
+    ? `realtime:public:${table}:${filter}`
+    : `realtime:public:${table}`;
+  const ws = new WebSocket(`${wsUrl}/realtime/v1/websocket?apikey=${SB_KEY()}&vsn=1.0.0`);
   let heartbeat;
 
   ws.onopen = () => {
-    // Unirse al canal de la tabla
     ws.send(JSON.stringify({
-      topic: `realtime:public:${TABLE}:session_id=eq.${session_id}`,
+      topic,
       event: 'phx_join',
-      payload: { config: { broadcast: { self: false }, presence: { key: '' } } },
+      payload: { config: { broadcast: { self: true }, presence: { key: '' } } },
       ref: '1',
     }));
-    // Heartbeat cada 25s para mantener conexión viva
     heartbeat = setInterval(() => {
       ws.send(JSON.stringify({ topic: 'phoenix', event: 'heartbeat', payload: {}, ref: null }));
     }, 25000);
@@ -114,20 +131,13 @@ export function subscribeSession(session_id, onInsert) {
   ws.onmessage = (e) => {
     try {
       const msg = JSON.parse(e.data);
-      if (msg.event === 'INSERT' && msg.payload?.record) {
-        onInsert(msg.payload.record);
+      if (['INSERT', 'UPDATE', 'DELETE'].includes(msg.event) && msg.payload?.record) {
+        onEvent(msg.event, msg.payload.record);
       }
     } catch {}
   };
 
   ws.onclose = () => clearInterval(heartbeat);
-  ws.onerror = () => {}; // silencioso, la app funciona sin realtime
-
-  return () => { clearInterval(heartbeat); ws.close(); };  // retorna función para desuscribir
-}
-
-// ── Sync manual (para botón en UI) ───────────────────────────────────────────
-export async function syncNow() {
-  const flushed = await qFlush();
-  return { flushed, remaining: qCount() };
+  ws.onerror = () => {};
+  return () => { clearInterval(heartbeat); ws.close(); };
 }
