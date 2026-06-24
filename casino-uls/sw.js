@@ -1,5 +1,5 @@
-// sw.js — cachea la app para funcionar offline
-const CACHE = 'casino-v4';
+// sw.js — network-first: siempre intenta red, cache solo como fallback offline
+const CACHE = 'casino-v5';
 const ASSETS = ['/', '/index.html', '/supabase.js'];
 
 self.addEventListener('install', e => {
@@ -19,6 +19,13 @@ self.addEventListener('activate', e => {
 self.addEventListener('fetch', e => {
   if (e.request.url.includes('supabase.co')) return; // no cachear API calls
   e.respondWith(
-    caches.match(e.request).then(hit => hit || fetch(e.request))
+    fetch(e.request)
+      .then(res => {
+        // Actualiza cache con versión fresca
+        const clone = res.clone();
+        caches.open(CACHE).then(c => c.put(e.request, clone));
+        return res;
+      })
+      .catch(() => caches.match(e.request)) // offline: sirve desde cache
   );
 });
