@@ -174,13 +174,14 @@ body {
   align-items: center;
   justify-content: space-between;
   flex-shrink: 0;
-  gap: 8px;
+  gap: 6px;
   box-shadow: 0 1px 3px rgba(0,0,0,.05);
+  flex-wrap: wrap;
 }
-.topbar-left { display: flex; flex-direction: column; min-width: 0; flex: 1; }
+.topbar-left { display: flex; flex-direction: column; min-width: 0; flex: 1 1 110px; }
 .topbar-role    { font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: #888; font-weight: 600; }
 .topbar-session { font-size: 14px; font-weight: 700; color: #111; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.topbar-right   { display: flex; align-items: center; gap: 5px; flex-shrink: 0; }
+.topbar-right   { display: flex; align-items: center; gap: 4px; flex-shrink: 0; flex-wrap: wrap; justify-content: flex-end; }
 
 .badge { font-size: 11px; font-weight: 700; padding: 4px 9px; border-radius: 20px; white-space: nowrap; }
 .badge-online  { background: #f0fdf4; color: #15803d; border: 1px solid #86efac; }
@@ -199,8 +200,30 @@ body {
   padding: 6px 10px;
   cursor: pointer;
   font-weight: 600;
+  min-height: 34px;
+  min-width: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 .btn-icon:active { background: #ebebeb; }
+
+/* ── Topbar responsive (narrow mobile) ──────────────────── */
+@media (max-width: 480px) {
+  .topbar {
+    padding: 8px 10px;
+    gap: 4px;
+    align-items: flex-start;
+  }
+  .topbar-left { flex: 1 1 100%; }
+  .topbar-right {
+    flex: 0 0 100%;
+    justify-content: flex-start;
+    gap: 4px;
+  }
+  .badge { font-size: 10px; padding: 3px 6px; }
+  .btn-icon { padding: 8px 11px; min-height: 38px; min-width: 38px; font-size: 15px; }
+}
 
 /* ══════════════════════════════════════════════════════════
    COORDINATOR SCREEN
