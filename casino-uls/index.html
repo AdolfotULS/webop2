@@ -789,7 +789,7 @@ async function entrarCoordinador() {
 
   unsubSession = subscribeTable('sessions', `id=eq.${sessionId}`, (ev, row) => {
     if (row.status !== sessionStatus) {
-      if (row.started_at) sessionStartedAt = Number(new Date(row.started_at));
+      if (row.started_at != null) sessionStartedAt = Number(row.started_at);
       sessionStatus = row.status;
       renderCoordBadge();
       renderCoordBody();
@@ -821,7 +821,7 @@ async function entrarCoordinadorRetomar() {
   sessionLabel = s.label;
   nCajas       = s.n_cajas;
   sessionStatus = s.status;
-  sessionStartedAt = s.started_at ? Number(new Date(s.started_at)) : null;
+  sessionStartedAt = s.started_at != null ? Number(s.started_at) : null;
 
   document.getElementById('coord-lbl-session').textContent = sessionLabel;
   showScreen('coordinator');
@@ -832,13 +832,14 @@ async function entrarCoordinadorRetomar() {
 
   // Load existing events for stats
   try {
-    sessionEvents = (await fetchSession(sessionId)) || [];
+    const raw = (await fetchSession(sessionId)) || [];
+    sessionEvents = raw.map(e => ({ ...e, t_server: Number(e.t_server) }));
     updateCoordStats();
   } catch { sessionEvents = []; }
 
   unsubSession = subscribeTable('sessions', `id=eq.${sessionId}`, (ev, row) => {
     if (row.status !== sessionStatus) {
-      if (row.started_at) sessionStartedAt = Number(new Date(row.started_at));
+      if (row.started_at != null) sessionStartedAt = Number(row.started_at);
       sessionStatus = row.status;
       renderCoordBadge();
       renderCoordBody();
@@ -870,7 +871,7 @@ async function entrarObservador() {
   sessionLabel = s.label;
   nCajas       = s.n_cajas;
   sessionStatus = s.status;
-  sessionStartedAt = s.started_at ? Number(new Date(s.started_at)) : null;
+  sessionStartedAt = s.started_at != null ? Number(s.started_at) : null;
 
   const rolLabel = rol === 'fila' ? 'Observador de Fila' : 'Observador de Atención';
   const rolColor = rol === 'fila' ? '#1d4ed8' : '#15803d';
@@ -887,7 +888,7 @@ async function entrarObservador() {
 
   unsubSession = subscribeTable('sessions', `id=eq.${sessionId}`, (ev, row) => {
     if (row.status !== sessionStatus) {
-      if (row.started_at) sessionStartedAt = Number(new Date(row.started_at));
+      if (row.started_at != null) sessionStartedAt = Number(row.started_at);
       sessionStatus = row.status;
       applySessionState(sessionStatus);
     }
@@ -1396,14 +1397,15 @@ window.forceRefreshCoord = async function() {
   try {
     const s = await fetchOneSession(sessionId);
     if (s) {
-      if (s.started_at) sessionStartedAt = Number(new Date(s.started_at));
+      if (s.started_at != null) sessionStartedAt = Number(s.started_at);
       if (s.status !== sessionStatus) {
         sessionStatus = s.status;
         renderCoordBadge();
         renderCoordBody();
       }
     }
-    sessionEvents = (await fetchSession(sessionId)) || [];
+    const rawRefresh = (await fetchSession(sessionId)) || [];
+    sessionEvents = rawRefresh.map(e => ({ ...e, t_server: Number(e.t_server) }));
     updateCoordStats();
   } catch {}
 };
@@ -1415,7 +1417,7 @@ window.forceRefresh = async function() {
   try {
     const s = await fetchOneSession(sessionId);
     if (s) {
-      if (s.started_at) sessionStartedAt = Number(new Date(s.started_at));
+      if (s.started_at != null) sessionStartedAt = Number(s.started_at);
       if (s.status !== sessionStatus) {
         sessionStatus = s.status;
         applySessionState(sessionStatus);
